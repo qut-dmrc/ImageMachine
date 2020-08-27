@@ -1,3 +1,5 @@
 *.json
 .vscode
 downloads
+__pycache__
+graph
