@@ -20,7 +20,6 @@ def main():
 
     with open(input_file, 'r', encoding="utf8") as f:
         metadata = json.load(f)
-
         vgg16_predictions = []
         vgg19_predictions = []
         for node in metadata:
