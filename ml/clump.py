@@ -32,6 +32,5 @@ def clump(predictions, metadata, method='average', metric='euclidean'):
         'children': [],
         'metadata': {}
     }
-
     descend_cluster(root_node, tree, metadata)
     return tree
