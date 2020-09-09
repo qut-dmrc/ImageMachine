@@ -31,18 +31,18 @@ def main():
                 filemeta['node'] = node
                 filemeta['_mediaPath'] = [_mediaPath]
                 metadata.append(filemeta)
-                writeJSONToFile(metadataFilename, metadataFilename, 'w')
-            with archive.open(apath,'rb') as file:
-                ## Clustering
-                output = predict_image(Image.open(file))
-                vgg16_predictions.append(output[0])
-                vgg19_predictions.append(output[1])
-    clusterData = {}
-    tree_vgg16 = clump(vgg16_predictions, metadata)
-    tree_vgg19 = clump(vgg19_predictions, metadata)
-    clusterData['tree_vgg16'] = tree_vgg16
-    clusterData['tree_vgg19'] = tree_vgg19        
-    writeJSONToFile("clusters.json", clusterData, 'w')
+                writeJSONToFile(metadataFilename, metadata, 'w')
+    #         with archive.open(apath,'rb') as file:
+    #             ## Clustering
+    #             output = predict_image(Image.open(file))
+    #             vgg16_predictions.append(output[0])
+    #             vgg19_predictions.append(output[1])
+    # clusterData = {}
+    # tree_vgg16 = clump(vgg16_predictions, metadata)
+    # tree_vgg19 = clump(vgg19_predictions, metadata)
+    # clusterData['tree_vgg16'] = tree_vgg16
+    # clusterData['tree_vgg19'] = tree_vgg19        
+    # writeJSONToFile("clusters.json", clusterData, 'w')
 
 
 def writeJSONToFile(filename, data, mode):
