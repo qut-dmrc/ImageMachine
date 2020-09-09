@@ -1,6 +1,9 @@
-*.json
+data
 .vscode
 downloads
+download
 __pycache__
 graph
 .env
+*.zip
+*.json
