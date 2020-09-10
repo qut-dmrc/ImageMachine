@@ -16,13 +16,14 @@ def main():
     # args = parser.parse_args()
     # input_file = args.input
 
-    input_file = os.path.join(os.getcwd(), "arianagrande_full.json")
+    input_file = os.path.join(os.getcwd(), "../data/jane.txy.json")
 
     with open(input_file, 'r', encoding="utf8") as f:
         metadata = json.load(f)
         vgg16_predictions = []
         vgg19_predictions = []
         for node in metadata:
+            # print(node['_mediaPath'][0], type(node['_mediaPath'][0]))
             output = predict_path(node['_mediaPath'][0])
             vgg16_predictions.append(output[0])
             vgg19_predictions.append(output[1])

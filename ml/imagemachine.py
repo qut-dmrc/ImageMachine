@@ -21,7 +21,7 @@ def main():
     tree_vgg19 = clump(vgg19_predictions, metadata_out)
     clusterData['tree_vgg16'] = tree_vgg16
     clusterData['tree_vgg19'] = tree_vgg19        
-    writeJSONToFile("clusters.json", clusterData, 'w')
+    writeJSONToFile(".././graph/static/clusters.json", clusterData, 'w')
 
 def createMetadataAndModelFilters(source_file, create_metadata, metadata):
     vgg16_predictions = []

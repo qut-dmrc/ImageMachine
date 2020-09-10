@@ -1,0 +1,154 @@
+body {
+    font-family: "Helvetica", sans-serif;
+    background-color: #3d3d3d;
+    color: #aab2a3;
+    margin: 0;
+}
+
+#imagePopup {
+    display: none;
+    width: 75vw;
+    height: 75vh;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 500;
+    pointer-events:none;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
+}
+
+#fetchPopup {
+    display: none;
+    width: 200px;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 500;
+    background-color: rgb(83, 83, 83);
+    color: white;
+}
+
+#main {
+    height: 99vh;
+}
+
+h1 {
+    text-decoration-line: underline;
+}
+
+h1, h2 {
+    color: #b3aa2c;
+}
+
+#left {
+    box-sizing: border-box;
+    border-right: 1px white dashed;
+    height: 100%;
+
+}
+
+svg {
+    width: 100%;
+    height: 100%;
+}
+
+#main div {
+    float: left;
+}
+
+#right {
+    background-color: #2e2e2e;
+    width: 35%;
+    overflow-y: auto;
+    height: 100%;
+
+}
+
+#right div {
+    clear: left;
+    z-index: 100;
+    margin-bottom: 20px;
+    width: 100%;
+}
+
+#left {
+    width: 65%;
+    /*background-color: lightblue;*/
+}
+
+h1, #controls, #statistics, #data, #gallery select {
+    /*background-color: lightgreen;*/
+    margin-left: 20px;
+}
+
+#controls form {
+    width: auto;
+    height: auto;
+}
+
+label {
+    display: block;
+    margin-bottom: 10px;
+    margin-top: 10px;
+}
+
+button, select {
+    background-color: #3d3d3d;
+    color: white;
+    border: 1px white solid;
+}
+
+#imageGallery {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    grid-gap: 10px;
+}
+
+#imageGallery div img {
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    display: block;
+    cursor: pointer;
+}
+
+#flatValue {
+    color: white;
+    border: none;
+    background-color: #2e2e2e;
+}
+
+.node {
+    fill: #fff53e;
+    stroke: none;
+    cursor: pointer;
+}
+
+.link {
+    fill: none;
+    stroke: #ccc;
+    /*stroke-width: 1px;*/
+}
+
+table {
+    border: solid 1px #aab2a3;
+    border-collapse: collapse;
+    border-spacing: 0;
+    font: normal 13px Arial, sans-serif;
+}
+table thead th {
+    background-color: #aab2a3;
+    border: solid 1px #aab2a3;
+    color: #3d3d3d;
+    padding: 10px;
+    text-align: left;
+}
+table tbody td {
+    border: solid 1px #aab2a3;
+    color: #fff;
+    padding: 10px;
+}

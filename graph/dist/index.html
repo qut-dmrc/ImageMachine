@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>ImageCluster</title>
+    <script src="main.js"></script>
+    <style>
+        body {
+            font-family: "Helvetica", sans-serif;
+            background-color: #3d3d3d;
+            color: #aab2a3;
+            margin: 0;
+        }
+
+        #imagePopup {
+            display: none;
+            width: 75vw;
+            height: 75vh;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 500;
+            pointer-events:none;
+            background-repeat: no-repeat;
+            background-position: center;
+            background-size: contain;
+        }
+
+        #fetchPopup {
+            display: none;
+            width: 200px;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 500;
+            background-color: rgb(83, 83, 83);
+            color: white;
+        }
+
+        #main {
+            height: 99vh;
+        }
+
+        h1 {
+            text-decoration-line: underline;
+        }
+
+        h1, h2 {
+            color: #b3aa2c;
+        }
+
+        #left {
+            box-sizing: border-box;
+            border-right: 1px white dashed;
+            height: 100%;
+
+        }
+
+        svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        #main div {
+            float: left;
+        }
+
+        #right {
+            background-color: #2e2e2e;
+            width: 35%;
+            overflow-y: auto;
+            height: 100%;
+
+        }
+
+        #right div {
+            clear: left;
+            z-index: 100;
+            margin-bottom: 20px;
+            width: 100%;
+        }
+
+        #left {
+            width: 65%;
+            /*background-color: lightblue;*/
+        }
+
+        h1, #models, #controls, #statistics, #data, #gallery select {
+            /*background-color: lightgreen;*/
+            margin-left: 20px;
+        }
+
+        #controls form {
+            width: auto;
+            height: auto;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 10px;
+            margin-top: 10px;
+        }
+
+        button, select {
+            background-color: #3d3d3d;
+            color: white;
+            border: 1px white solid;
+        }
+
+        #imageGallery {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            grid-gap: 10px;
+        }
+
+        #imageGallery div img {
+            width: 100%;
+            margin-left: auto;
+            margin-right: auto;
+            display: block;
+            cursor: pointer;
+        }
+
+        #flatValue {
+            color: white;
+            border: none;
+            background-color: #2e2e2e;
+        }
+
+        .node {
+            fill: #fff53e;
+            stroke: none;
+            cursor: pointer;
+        }
+
+        .link {
+            fill: none;
+            stroke: #ccc;
+            /*stroke-width: 1px;*/
+        }
+
+        table {
+            border: solid 1px #aab2a3;
+            border-collapse: collapse;
+            border-spacing: 0;
+            font: normal 13px Arial, sans-serif;
+        }
+        table thead th {
+            background-color: #aab2a3;
+            border: solid 1px #aab2a3;
+            color: #3d3d3d;
+            padding: 10px;
+            text-align: left;
+        }
+        table tbody td {
+            border: solid 1px #aab2a3;
+            color: #fff;
+            padding: 10px;
+        }
+    </style>
+</head>
+<body>
+<script>
+    /**
+     * Trigger input event when slider dragged
+     * @param element
+     */
+    function flatteningUpdated(element) {
+        element.dispatchEvent(new Event("input"));
+    }
+
+    // function updateModel(element){
+    //     element.dispatchEvent(new Event("change"));
+    // }
+</script>
+<div id="imagePopup"></div>
+<div id="fetchPopup">Fetching data</div>
+
+<div id="main">
+    <div id="left"></div>
+    <div id="right">
+        <h1>Models</h1>
+        <div id="models">
+            <select id="models-dropdown" autocomplete="off">
+            </select>
+        </div>
+        <h1>Controls</h1>
+        <div id="controls">
+            <form autocomplete="off">
+                <label for="flatSlider">Cluster distance flattening</label>
+                <input id="flatSlider" type="range" step="0.000001"
+                       oninput="flatValue.value = flatSlider.value; flatteningUpdated(flatValue)"
+                       value="0">
+                <input id="flatValue" type="text" oninput="flatSlider.value = flatValue.value" value="0">
+                <label>Object query</label>
+                <input type="text" value="unavailable" disabled>
+                <label>Display</label>
+                <button id="zoomReset">Reset</button>
+            </form>
+        </div>
+        <h1>Statistics</h1>
+        <div id="statistics">
+            <p>Node name: <span id="nodeName"></span></p>
+            <p>Leaves: <span id="leafCount"></span></p>
+            <p>Median cluster distance: <span id="descendantDistance"></span></p>
+        </div>
+        <h1>Images</h1>
+        <div id="gallery">
+            <select id="gallerySamples" autocomplete="off">
+                <option>Sample</option>
+                <option>All</option>
+            </select>
+            <select id="galleryMasks" autocomplete="off">
+                <option>Images</option>
+                <option>Masks</option>
+            </select>
+            <br>
+            <br>
+            <div id="imageGallery"></div>
+        </div>
+        <h1>Data</h1>
+        <div id="data">
+            <button id="exportButton" title="Export node and descendents' metadata">Export</button>
+            <a id="downloadAnchorElem" style="display:none"></a>
+
+            <h2>Objects</h2>
+            NOTE: There's a bug in object probability reporting, these values are not accurate
+            <table id="objectsTable">
+                <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Count</th>
+                    <th>Median probability</th>
+                </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+
+            <h2>Users</h2>
+            <p>TODO</p>
+
+            <h2>Tagged users</h2>
+            <p>TODO</p>
+
+            <h2>Locations</h2>
+            <p>TODO</p>
+
+            <h2>Timestamps</h2>
+            <p>TODO</p>
+
+            <h2>Accessibility captions</h2>
+            <p>TODO</p>
+
+            <h2>Post type</h2>
+            <p>TODO</p>
+
+            <h2>Like counts</h2>
+            <p>TODO</p>
+
+            <h2>Comment counts</h2>
+            <p>TODO</p>
+
+            <h2>Sponsored status</h2>
+            <p>TODO</p>
+        </div>
+    </div>
+</div>
+</body>
+</html>

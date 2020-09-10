@@ -3,7 +3,7 @@ data
 downloads
 download
 __pycache__
-graph
+node_modules
 .env
 *.zip
 *.json
