@@ -1,5 +1,14 @@
 const path = require('path');
 const CopyPlugin = require('copy-webpack-plugin');
+// const pythonProcess = spawn('python',[".././ml/imagemachine.py"]);
+// const { execFile } = require('child_process');
+// const child = execFile('python', ['.././ml/imagemachine.py'], (error, stdout, stderr) => {
+//     if (error) {
+//       throw error;
+//     }
+//     console.log(stdout);
+//   });
+
 
 module.exports = {
     // entry: './src/index.ts',
