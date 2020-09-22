@@ -6,7 +6,6 @@ import tensorflow.python.keras.applications.vgg19 as VGG19
 from models import model_vgg16, model_vgg19
 from squash import squash_image
 
-
 def predict_image(image):
     image = squash_image(image, 224, 224)
     image_array = keras.preprocessing.image.img_to_array(image, dtype=int)
