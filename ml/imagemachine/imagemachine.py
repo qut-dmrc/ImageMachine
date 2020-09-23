@@ -58,7 +58,7 @@ class ImageMachine:
         metadata = []
         ## reading metadata
         if src_meta:
-            metadata = self.get_metadata(src_meta, fieldname, src_img)
+            metadata = self.get_metadata(src_meta, fieldname, src_img, datasize)
         # print(len(metadata))
         if src_img:
             if zip_folder != "":
@@ -75,7 +75,7 @@ class ImageMachine:
         clusterData['tree_vgg19'] = tree_vgg19
         writeJSONToFile("../graph/static/clusters_{}.json".format(datasize), clusterData, 'w')
 
-    def time_process_images(self, sizeArray, src_img, zip_folder="", src_meta=None, fieldname=None):        
+    def time_process_images(self, sizeArray, src_img=None, zip_folder="", src_meta=None, fieldname=None):        
         execution_time = []
         for size in sizeArray:           
             start_time = time.time()
@@ -86,11 +86,11 @@ class ImageMachine:
             execution_time.append(exec_time)
         return execution_time
 
-    def get_metadata(self, src_meta, fieldname, src_img=None):
+    def get_metadata(self, src_meta, fieldname, src_img=None, datasize=None):
         src_meta_abs = os.path.join(self.src_meta_parent, src_meta)
         if src_meta.split('.')[-1] == 'csv':
             print('CSV !')
-            metadata = self.CSVtoJSON(src_meta_abs, fieldname, src_img)
+            metadata = self.CSVtoJSON(src_meta_abs, fieldname, src_img, datasize)
     
         if src_meta.split('.')[-1] == 'json':
             print('JSON !')
@@ -98,11 +98,17 @@ class ImageMachine:
                 metadata = json.load(f)
         return metadata
 
-    def CSVtoJSON(self, src_meta_abs, fieldname, src_media=None):
+    def CSVtoJSON(self, src_meta_abs, fieldname, src_media=None, datasize=None):
+        print('Converting CSV to JSON')
         df = pd.read_csv(src_meta_abs)
         header = df.columns.values
+        if datasize:
+            length = min(df.shape[0], datasize)
+        else:
+            length = df.shape[0]
         metadata = []
-        for i in range(df.shape[0]): # number of rows  shape:(row, column)
+        print('Length', length)
+        for i in range(length): # number of rows shape:(row, column)
             row = df.iloc[i].to_dict()
             if src_media:
                 image_name = df.iloc[i][fieldname].split('/')[-1]
@@ -120,7 +126,6 @@ class ImageMachine:
         
         newmeta_filename = "metadata_{}.json".format(datasize)
         # follow the sequence in metadatas
-        print('Reading from metadata')
         new_metadata = []
         with concurrent.futures.ThreadPoolExecutor() as executor:
             for node in metadata:
