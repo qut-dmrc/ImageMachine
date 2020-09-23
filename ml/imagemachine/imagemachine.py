@@ -7,7 +7,9 @@ import pandas as pd
 import numpy as np
 import concurrent.futures
 import zipfile
-
+import time
+import requests
+from io import BytesIO
 
 from predict import *
 from clump import *
@@ -42,7 +44,7 @@ class ImageMachine:
             os.mkdir(media_folder_fullpath) # create folder
         downloadImageFromURL(image_urls, media_folder_fullpath)
 
-    def process_images(self, src_img, zip_folder="", src_meta=None, fieldname=None, datasize=None):
+    def process_images(self, src_img=None, zip_folder="", src_meta=None, fieldname=None, datasize=None):
         """
         Process images stored in src_img, creating or converting src_meta into json format
         for image processing
@@ -56,56 +58,94 @@ class ImageMachine:
         metadata = []
         ## reading metadata
         if src_meta:
-            src_meta_abs = os.path.join(self.src_meta_parent, src_meta)
-            if src_meta.split('.')[-1] == 'csv':
-                print('CSV !')
-                metadata = self.CSVtoJSON(src_meta_abs, src_img, fieldname)
-        
-            if src_meta.split('.')[-1] == 'json':
-                print('JSON !')
-                with open(src_meta_abs, 'r', encoding="utf8") as f:
-                    metadata = json.load(f)
+            metadata = self.get_metadata(src_meta, fieldname, src_img)
         # print(len(metadata))
-        if zip_folder != "":
-            metadata_out, vgg16_predictions, vgg19_predictions = self.readFromZip(os.path.join(self.src_img_parent, zip_folder), metadata) # read from zip
+        if src_img:
+            if zip_folder != "":
+                metadata_out, vgg16_predictions, vgg19_predictions = self.readFromZip(os.path.join(self.src_img_parent, zip_folder), metadata, datasize) # read from zip
+            else:
+                metadata_out, vgg16_predictions, vgg19_predictions = self.readFromFolder(os.path.join(self.src_img_parent, src_img), metadata, datasize) # read from file folder
         else:
-            metadata_out, vgg16_predictions, vgg19_predictions = self.readFromFolder(os.path.join(self.src_img_parent, src_img), metadata) # read from file folder
-        # print(len(metadata_out))
-        # print(len(vgg16_predictions))
+            # get images online
+            metadata_out, vgg16_predictions, vgg19_predictions = self.readFromOnline(metadata, datasize)
         tree_vgg16 = clump(vgg16_predictions, metadata_out)
         tree_vgg19 = clump(vgg19_predictions, metadata_out)
         clusterData = {}
         clusterData['tree_vgg16'] = tree_vgg16
         clusterData['tree_vgg19'] = tree_vgg19
-        writeJSONToFile("../graph/static/clusters.json", clusterData, 'w')
-        # writeJSONToFile(".././graph/static/clusters_{}.json".format(data_size[i]), clusterData, 'w')
-        # #     execution_time.append(time.time() - start_time)
-        # #     print("Size: {} Seconds: {}".format(data_size[i], execution_time[i]))a
+        writeJSONToFile("../graph/static/clusters_{}.json".format(datasize), clusterData, 'w')
 
-    def time_process_images(self):
-        # # start_time = time.time()
-        # # data_size = [100, 1000, 5000, 10000, 50000, 100000, 500000, 1000000]
-        # # execution_time = []
-        # # for i in range(len(data_size)):
-        #     # start_time = time.time()
-        pass
+    def time_process_images(self, sizeArray, src_img, zip_folder="", src_meta=None, fieldname=None):        
+        execution_time = []
+        for size in sizeArray:           
+            start_time = time.time()
+            print('processing size: {}'.format(size))
+            self.process_images(src_img, zip_folder, src_meta, fieldname, size)
+            exec_time = time.time()-start_time
+            print('Execution time: {}'.format(exec_time))
+            execution_time.append(exec_time)
+        return execution_time
 
-    def CSVtoJSON(self, src_meta_abs, src_media, fieldname):
+    def get_metadata(self, src_meta, fieldname, src_img=None):
+        src_meta_abs = os.path.join(self.src_meta_parent, src_meta)
+        if src_meta.split('.')[-1] == 'csv':
+            print('CSV !')
+            metadata = self.CSVtoJSON(src_meta_abs, fieldname, src_img)
+    
+        if src_meta.split('.')[-1] == 'json':
+            print('JSON !')
+            with open(src_meta_abs, 'r', encoding="utf8") as f:
+                metadata = json.load(f)
+        return metadata
+
+    def CSVtoJSON(self, src_meta_abs, fieldname, src_media=None):
         df = pd.read_csv(src_meta_abs)
         header = df.columns.values
         metadata = []
         for i in range(df.shape[0]): # number of rows  shape:(row, column)
             row = df.iloc[i].to_dict()
-            image_name = df.iloc[i][fieldname].split('/')[-1]
-            image_path = os.path.join(src_media, image_name)
+            if src_media:
+                image_name = df.iloc[i][fieldname].split('/')[-1]
+                image_path = os.path.join(src_media, image_name)
+            else:
+                image_path = image_path = df.iloc[i][fieldname]
             self.appendToMetadata(image_path, metadata, row)
         writeJSONToFile(os.path.join(self.src_meta_parent,'metadata.json'), metadata, 'w')
         return metadata
 
-    def readFromFolder(self, source_file, metadata):
+    def readFromOnline(self, metadata, datasize=None):
+        print("Reading images online")
+        vgg16_predictions = []
+        vgg19_predictions = []
+        
+        newmeta_filename = "metadata_{}.json".format(datasize)
+        # follow the sequence in metadatas
+        print('Reading from metadata')
+        new_metadata = []
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            for node in metadata:
+                url = node['_mediaPath'][0].replace('\\','/')
+                response = requests.get(url)
+                filename = url.split('/')[-1]
+                if response:
+                    img = Image.open(BytesIO(response.content))
+                    new_metadata.append(node)
+                    executor.submit(self.predictImageOnline, img, vgg16_predictions, vgg19_predictions)
+                    if datasize:
+                        datasize -= 1
+                        if datasize == 0:
+                            break
+            metadata = new_metadata
+
+        writeJSONToFile(os.path.join(self.src_meta_parent,newmeta_filename), metadata, 'w')
+        return metadata, vgg16_predictions, vgg19_predictions
+
+    def readFromFolder(self, source_file, metadata, datasize=None):
         print("Normal folder")
         vgg16_predictions = []
         vgg19_predictions = []
+        
+        newmeta_filename = "metadata_{}.json".format(datasize)
         ## metadata provided  
         if metadata and len(metadata) > 0:
             # follow the sequence in metadatas
@@ -118,6 +158,10 @@ class ImageMachine:
                     if os.path.exists(os.path.join(source_file,apath)):
                         new_metadata.append(node)
                         executor.submit(self.predictImage, source_file, apath, vgg16_predictions, vgg19_predictions)
+                        if datasize:
+                            datasize -= 1
+                            if datasize == 0:
+                                break
                 metadata = new_metadata
 
         ## no metadata
@@ -130,15 +174,20 @@ class ImageMachine:
                         apath = os.path.join(folder, name)
                         self.appendToMetadata(apath, metadata)
                         executor.submit(self.predictImage, path, name, vgg16_predictions, vgg19_predictions)
-        writeJSONToFile(os.path.join(self.src_meta_parent,'metadata.json'), metadata, 'w')
+                        if datasize:
+                            datasize -= 1
+                            if datasize == 0:
+                                break
+        writeJSONToFile(os.path.join(self.src_meta_parent,newmeta_filename), metadata, 'w')
         return metadata, vgg16_predictions, vgg19_predictions
 
-    def readFromZip(self, source_file, metadata):
+    def readFromZip(self, source_file, metadata, datasize=None):
         print("Zip")
         vgg16_predictions = []
         vgg19_predictions = []
         # walk through zip file
         archive = ZipFS(os.path.join(os.getcwd(),source_file))
+        newmeta_filename = "metadata_{}.json".format(datasize)
         ## metadata provided  
         if metadata and len(metadata) > 0:
             # follow the sequence in metadatas
@@ -150,6 +199,10 @@ class ImageMachine:
                     if archive.exists(apath):
                         new_metadata.append(node)
                         executor.submit(self.predictImageInZip, archive, apath, vgg16_predictions, vgg19_predictions)
+                        if datasize:
+                            datasize -= 1
+                            if datasize == 0:
+                                break
                 metadata = new_metadata
         ## no metadata
         else:
@@ -162,8 +215,11 @@ class ImageMachine:
                     ## create metadata
                     self.appendToMetadata(apath, metadata)
                     executor.submit(self.predictImageInZip, archive, apath, vgg16_predictions, vgg19_predictions)
-
-        writeJSONToFile(os.path.join(self.src_meta_parent,'metadata.json'), metadata, 'w')
+                    if datasize:
+                        datasize -= 1
+                        if datasize == 0:
+                            break
+        writeJSONToFile(os.path.join(self.src_meta_parent,newmeta_filename), metadata, 'w')
         return metadata, vgg16_predictions, vgg19_predictions
 
     @staticmethod
@@ -177,6 +233,12 @@ class ImageMachine:
     @staticmethod
     def predictImage(_folder, apath, vgg16_predictions, vgg19_predictions):
         output = predict_image(Image.open(os.path.join(_folder,apath)))
+        vgg16_predictions.append(output[0])
+        vgg19_predictions.append(output[1])
+
+    @staticmethod
+    def predictImageOnline(img, vgg16_predictions, vgg19_predictions):
+        output = predict_image(img)
         vgg16_predictions.append(output[0])
         vgg19_predictions.append(output[1])
 

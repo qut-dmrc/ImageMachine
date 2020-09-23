@@ -22,10 +22,6 @@ importlib-metadata @ file:///C:/ci/importlib-metadata_1593446525189/work
 Keras==2.4.3
 Keras-Applications @ file:///tmp/build/80754af9/keras-applications_1594366238411/work
 Keras-Preprocessing==1.1.0
-Markdown @ file:///C:/ci/markdown_1597415185889/work
-mkl-fft==1.2.0
-mkl-random==1.1.1
-mkl-service==2.3.0
 numpy @ file:///C:/ci/numpy_and_numpy_base_1596233945180/work
 oauthlib==3.1.0
 opt-einsum==3.1.0

@@ -3,8 +3,15 @@ __pycache__
 node_modules
 .env
 *.zip
-*.json
 *.csv
 images
 output_data
 downloads
+metadata
+test2
+package-lock.json
+dist\main.js
+*.jpg
+*.png
+graph/static
+graph/dist
