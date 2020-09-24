@@ -1,22 +1,57 @@
-import json
-import os
-from fs.zipfs import ZipFS
-from PIL import Image
-import pandas as pd
-import numpy as np
-import time
-import concurrent.futures
-import zipfile
+import click
+import yaml
+import logging
+import matplotlib.pyplot as plt
+from .imagemachine import *
 
-from imagemachine import * 
-
-def main():
-    source_meta = 'metadata.json'
-    # source_meta = 'test2.csv'
-    url_fieldname = 'media_url'
-    im = ImageMachine()
-    # im.download_images(source_meta, url_fieldname, size = 20)
-    im.process_images('test2')
+@click.command()
+@click.option('-config','--config', nargs=1)
+@click.option('-img','--img', nargs=1, default=None)
+@click.option('-zip','---zip', nargs=1, default="")
+@click.option('-metadata','--metadata', nargs=1, default=None)
+@click.option('-fieldname','--fieldname', nargs=1, default=None)
+@click.option('-d','--download', is_flag=True)
+@click.option('-s','--size', nargs=1, default=None, type=int)
+@click.option('-t','--time', is_flag=True)
+@click.option('-size_list', 'size_list', nargs=1, default=None)
+@click.option('-log', is_flag=True)
+def main(config, img, _zip, metadata, fieldname, download, size, time, size_list, log):
+    # TODO: check
+    if config:
+        with open(os.path.join(os.getcwd(),config)) as f:
+            params = yaml.full_load(f)
+        download = params['download']
+        src_img = params['img']   
+        source_meta = params['metadata']   
+        fieldname = params['fieldname']  
+        size = params['size']      
+        time = params['time']
+        size_list = params['size_list']
     
+    if log:
+        logging.basicConfig(filename='paging.log',level=logging.INFO)
+
+    im = ImageMachine()
+    if download:
+        img = im.download_images(metadata, fieldname, size = size)
+    if time:
+        if size_list:
+            size_list = size_list.strip().split(',')
+            size_list = [int(i) for i in size_list]
+            execution_time = im.time_process_images(size_list, img, _zip, metadata, fieldname)
+            print(execution_time)
+            plt.plot(data_size, execution_time)
+            plt.xlabel('Data size')
+            plt.ylabel('Execution time')
+            plt.show()
+    else:
+        im.process_images(img, _zip, metadata, fieldname, size)
+    # # print(execution_time)
+    # # # execution_time = [6.010409832000732, 24.725720405578613, 37.434375047683716, 50.046541929244995]
+    # # plt.plot(data_size, execution_time)
+    # # plt.xlabel('Data size')
+    # # plt.ylabel('Execution time')
+    # # plt.show()
+
 if __name__ == "__main__":
     main()

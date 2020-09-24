@@ -11,9 +11,9 @@ import time
 import requests
 from io import BytesIO
 
-from predict import *
-from clump import *
-from tools import *
+from .predict import *
+from .clump import *
+from .tools import *
 
 class ImageMachine:
     # class attributes 
@@ -31,6 +31,8 @@ class ImageMachine:
             fieldname (String): name of the column of urls
             media_folder (String, optional): the name of media folder in which the images will be stored. Defaults to same name as the source_meta
             size (int, optional): Number of urls to download from. Actual downloaded images might be less if images are removed. Defaults to None.
+        Returns:
+            [string]: Folder name that stores all the images
         """
         if not dest_folder: 
             dest_folder = src_meta.split('.')[0]
@@ -43,6 +45,7 @@ class ImageMachine:
         if not os.path.isdir(media_folder_fullpath): 
             os.mkdir(media_folder_fullpath) # create folder
         downloadImageFromURL(image_urls, media_folder_fullpath)
+        return dest_folder
 
     def process_images(self, src_img=None, zip_folder="", src_meta=None, fieldname=None, datasize=None):
         """
@@ -59,7 +62,6 @@ class ImageMachine:
         ## reading metadata
         if src_meta:
             metadata = self.get_metadata(src_meta, fieldname, src_img, datasize)
-        # print(len(metadata))
         if src_img:
             if zip_folder != "":
                 metadata_out, vgg16_predictions, vgg19_predictions = self.readFromZip(os.path.join(self.src_img_parent, zip_folder), metadata, datasize) # read from zip
@@ -107,15 +109,16 @@ class ImageMachine:
         else:
             length = df.shape[0]
         metadata = []
-        print('Length', length)
         for i in range(length): # number of rows shape:(row, column)
             row = df.iloc[i].to_dict()
+            url = None
             if src_media:
                 image_name = df.iloc[i][fieldname].split('/')[-1]
                 image_path = os.path.join(src_media, image_name)
+                url = df.iloc[i][fieldname]
             else:
-                image_path = image_path = df.iloc[i][fieldname]
-            self.appendToMetadata(image_path, metadata, row)
+                image_path = df.iloc[i][fieldname]
+            self.appendToMetadata(image_path, metadata, row, url)
         writeJSONToFile(os.path.join(self.src_meta_parent,'metadata.json'), metadata, 'w')
         return metadata
 
@@ -248,7 +251,7 @@ class ImageMachine:
         vgg19_predictions.append(output[1])
 
     @staticmethod
-    def appendToMetadata(apath, metadata, node_meta=None):
+    def appendToMetadata(apath, metadata, node_meta=None, url=None):
         _mediaPath = apath.replace('/','\\')
         # add to metadata
         filemeta = {}
@@ -258,4 +261,6 @@ class ImageMachine:
         # node['byte_size'] = os.path.getsize(filepath)
         filemeta['node'] = node_meta
         filemeta['_mediaPath'] = [_mediaPath]
+        if url:
+            filemeta['_mediaPath'] = [url]
         metadata.append(filemeta)  
