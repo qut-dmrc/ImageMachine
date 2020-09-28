@@ -1,6 +1,5 @@
 import click
 import yaml
-import logging
 import matplotlib.pyplot as plt
 from .imagemachine import *
 
@@ -14,22 +13,21 @@ from .imagemachine import *
 @click.option('-s','--size', nargs=1, default=None, type=int)
 @click.option('-t','--time', is_flag=True)
 @click.option('-size_list', 'size_list', nargs=1, default=None)
-@click.option('-log', is_flag=True)
-def main(config, img, _zip, metadata, fieldname, download, size, time, size_list, log):
+@click.option('-clustering', is_flag=True)
+@click.option('-vgg16','--vgg16', nargs=1, default=None)
+@click.option('-vgg19','--vgg19', nargs=1, default=None)
+def main(config, img, _zip, metadata, fieldname, download, size, time, size_list, clustering, vgg16, vgg19):
     # TODO: check
     if config:
         with open(os.path.join(os.getcwd(),config)) as f:
             params = yaml.full_load(f)
         download = params['download']
-        src_img = params['img']   
-        source_meta = params['metadata']   
+        img = params['img']   
+        metadata = params['metadata']   
         fieldname = params['fieldname']  
         size = params['size']      
         time = params['time']
         size_list = params['size_list']
-    
-    if log:
-        logging.basicConfig(filename='paging.log',level=logging.INFO)
 
     im = ImageMachine()
     if download:
@@ -40,10 +38,12 @@ def main(config, img, _zip, metadata, fieldname, download, size, time, size_list
             size_list = [int(i) for i in size_list]
             execution_time = im.time_process_images(size_list, img, _zip, metadata, fieldname)
             print(execution_time)
-            plt.plot(data_size, execution_time)
+            plt.plot(size_list, execution_time)
             plt.xlabel('Data size')
             plt.ylabel('Execution time')
             plt.show()
+    elif clustering:
+        im.clustering(vgg16, vgg19, metadata, size)
     else:
         im.process_images(img, _zip, metadata, fieldname, size)
     # # print(execution_time)

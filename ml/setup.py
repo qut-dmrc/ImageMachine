@@ -5,7 +5,7 @@ setup(
     version = '0.1',
     packages = ['imagemachine'],
     install_requires=[
-        'Click'
+        'click'
     ],
     entry_points = {
         'console_scripts': [

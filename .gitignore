@@ -16,3 +16,5 @@ dist\main.js
 graph/static
 graph/dist
 *.egg-info
+*.log
+main.js

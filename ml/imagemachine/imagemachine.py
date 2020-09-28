@@ -10,13 +10,18 @@ import zipfile
 import time
 import requests
 from io import BytesIO
+import logging
+import datetime
+import sys
 
 from .predict import *
 from .clump import *
 from .tools import *
 
 class ImageMachine:
-    # class attributes 
+    # class attributes
+    sys.setrecursionlimit(2**20)
+    logging.basicConfig(filename='tracking.log', level=logging.DEBUG)
     src_img_parent = os.path.join("input_data","images")
     src_meta_parent = os.path.join("input_data","metadata")
     dest_meta_parent = "output_data"
@@ -44,6 +49,7 @@ class ImageMachine:
         media_folder_fullpath = os.path.join(self.src_img_parent, dest_folder, '')
         if not os.path.isdir(media_folder_fullpath): 
             os.mkdir(media_folder_fullpath) # create folder
+        logging.info('{}:Downloading images to {}'.format(datetime.datetime.now(), media_folder_fullpath))
         downloadImageFromURL(image_urls, media_folder_fullpath)
         return dest_folder
 
@@ -70,38 +76,33 @@ class ImageMachine:
         else:
             # get images online
             metadata_out, vgg16_predictions, vgg19_predictions = self.readFromOnline(metadata, datasize)
-        tree_vgg16 = clump(vgg16_predictions, metadata_out)
-        tree_vgg19 = clump(vgg19_predictions, metadata_out)
-        clusterData = {}
-        clusterData['tree_vgg16'] = tree_vgg16
-        clusterData['tree_vgg19'] = tree_vgg19
-        writeJSONToFile("../graph/static/clusters_{}.json".format(datasize), clusterData, 'w')
+        self.clustering(vgg16_predictions, vgg19_predictions, metadata_out, datasize)
 
     def time_process_images(self, sizeArray, src_img=None, zip_folder="", src_meta=None, fieldname=None):        
         execution_time = []
         for size in sizeArray:           
             start_time = time.time()
-            print('processing size: {}'.format(size))
+            logging.info('{}:Processing images in batches, Size: {}'.format(datetime.datetime.now(),size))
             self.process_images(src_img, zip_folder, src_meta, fieldname, size)
             exec_time = time.time()-start_time
-            print('Execution time: {}'.format(exec_time))
+            logging.info('{}:Total Execution Time: {}'.format(datetime.datetime.now(),exec_time))
             execution_time.append(exec_time)
         return execution_time
 
     def get_metadata(self, src_meta, fieldname, src_img=None, datasize=None):
         src_meta_abs = os.path.join(self.src_meta_parent, src_meta)
         if src_meta.split('.')[-1] == 'csv':
-            print('CSV !')
+            logging.info('{}:Reading CSV metadata'.format(datetime.datetime.now()))
             metadata = self.CSVtoJSON(src_meta_abs, fieldname, src_img, datasize)
     
         if src_meta.split('.')[-1] == 'json':
-            print('JSON !')
+            logging.info('{}:Reading JSON metadata'.format(datetime.datetime.now()))
             with open(src_meta_abs, 'r', encoding="utf8") as f:
                 metadata = json.load(f)
         return metadata
 
     def CSVtoJSON(self, src_meta_abs, fieldname, src_media=None, datasize=None):
-        print('Converting CSV to JSON')
+        logging.info('{}:Converting CSV to JSON'.format(datetime.datetime.now()))
         df = pd.read_csv(src_meta_abs)
         header = df.columns.values
         if datasize:
@@ -123,13 +124,16 @@ class ImageMachine:
         return metadata
 
     def readFromOnline(self, metadata, datasize=None):
-        print("Reading images online")
+        logging.info('{}:Requesting images through urls...'.format(datetime.datetime.now()))
         vgg16_predictions = []
         vgg19_predictions = []
         
         newmeta_filename = "metadata_{}.json".format(datasize)
+        vgg16_filename = "vgg16_{}.npy".format(datasize)
+        vgg19_filename = "vgg19_{}.npy".format(datasize)
         # follow the sequence in metadatas
         new_metadata = []
+        start_time = time.time()
         with concurrent.futures.ThreadPoolExecutor() as executor:
             for node in metadata:
                 url = node['_mediaPath'][0].replace('\\','/')
@@ -144,20 +148,26 @@ class ImageMachine:
                         if datasize == 0:
                             break
             metadata = new_metadata
-
+        exec_time = time.time()-start_time
+        logging.info('{}:Finished processing images. Excecution time: {}'.format(datetime.datetime.now(), exec_time))
         writeJSONToFile(os.path.join(self.src_meta_parent,newmeta_filename), metadata, 'w')
+        np.save(os.path.join(self.src_meta_parent,vgg16_filename), vgg16_predictions)
+        np.save(os.path.join(self.src_meta_parent,vgg19_filename), vgg19_predictions)
         return metadata, vgg16_predictions, vgg19_predictions
 
     def readFromFolder(self, source_file, metadata, datasize=None):
-        print("Normal folder")
+        logging.info('{}:Reading images from folder...'.format(datetime.datetime.now()))
         vgg16_predictions = []
         vgg19_predictions = []
         
         newmeta_filename = "metadata_{}.json".format(datasize)
+        vgg16_filename = "vgg16_{}.npy".format(datasize)
+        vgg19_filename = "vgg19_{}.npy".format(datasize)
+        start_time = time.time()
         ## metadata provided  
         if metadata and len(metadata) > 0:
             # follow the sequence in metadatas
-            print('Reading from metadata')
+            logging.info('{}:Looping through metadata...'.format(datetime.datetime.now()))
             new_metadata = []
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 for node in metadata:
@@ -174,7 +184,7 @@ class ImageMachine:
 
         ## no metadata
         else:
-            print('Creating metadata')
+            logging.info('{}:No metadata provided, creating new metadata...'.format(datetime.datetime.now()))
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 for path, subdirs, files in os.walk(source_file):
                     for name in files:
@@ -186,20 +196,27 @@ class ImageMachine:
                             datasize -= 1
                             if datasize == 0:
                                 break
+        exec_time = time.time() - start_time
+        logging.info('{}:Finished processing images. Excecution time: {}'.format(datetime.datetime.now(), exec_time))
         writeJSONToFile(os.path.join(self.src_meta_parent,newmeta_filename), metadata, 'w')
+        np.save(os.path.join(self.src_meta_parent,vgg16_filename), vgg16_predictions)
+        np.save(os.path.join(self.src_meta_parent,vgg19_filename), vgg19_predictions)
         return metadata, vgg16_predictions, vgg19_predictions
 
     def readFromZip(self, source_file, metadata, datasize=None):
-        print("Zip")
+        logging.info('{}:Reading images from zip folder...'.format(datetime.datetime.now()))
         vgg16_predictions = []
         vgg19_predictions = []
         # walk through zip file
         archive = ZipFS(os.path.join(os.getcwd(),source_file))
         newmeta_filename = "metadata_{}.json".format(datasize)
+        vgg16_filename = "vgg16_{}.npy".format(datasize)
+        vgg19_filename = "vgg19_{}.npy".format(datasize)
+        start_time = time.time()
         ## metadata provided  
         if metadata and len(metadata) > 0:
             # follow the sequence in metadatas
-            print('Reading from metadata')
+            logging.info('{}:Looping through metadata...'.format(datetime.datetime.now()))
             new_metadata = []
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 for node in metadata:
@@ -214,7 +231,7 @@ class ImageMachine:
                 metadata = new_metadata
         ## no metadata
         else:
-            print('Creating metadata')
+            logging.info('{}:No metadata provided, creating new metadata...'.format(datetime.datetime.now()))
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 for apath in archive.walk.files():
                     # apath: /folder/filename
@@ -227,8 +244,28 @@ class ImageMachine:
                         datasize -= 1
                         if datasize == 0:
                             break
+        exec_time = time.time() - start_time
+        logging.info('{}:Finished processing images. Excecution time: {}'.format(datetime.datetime.now(), exec_time))
         writeJSONToFile(os.path.join(self.src_meta_parent,newmeta_filename), metadata, 'w')
+        np.save(os.path.join(self.src_meta_parent,vgg16_filename), vgg16_predictions)
+        np.save(os.path.join(self.src_meta_parent,vgg19_filename), vgg19_predictions)
         return metadata, vgg16_predictions, vgg19_predictions
+
+    def clustering(self, vgg16_predictions, vgg19_predictions, metadata_out, datasize):
+        if not isinstance(vgg16_predictions,list):
+            vgg16_predictions = np.load(os.path.join(self.src_meta_parent, vgg16_predictions))
+        if not isinstance(vgg19_predictions,list):
+            vgg19_predictions = np.load(os.path.join(self.src_meta_parent, vgg19_predictions))
+        start_time = time.time()
+        logging.info('{}:Clustering images'.format(datetime.datetime.now()))
+        tree_vgg16 = clump(vgg16_predictions, metadata_out)
+        tree_vgg19 = clump(vgg19_predictions, metadata_out)
+        exec_time = time.time()-start_time
+        clusterData = {}
+        clusterData['tree_vgg16'] = tree_vgg16
+        clusterData['tree_vgg19'] = tree_vgg19
+        writeJSONToFile("../graph/static/clusters_{}.json".format(datasize), clusterData, 'w')
+        logging.info('{}:Clusters saved to static folder. Clustering time: {}'.format(datetime.datetime.now(), exec_time))
 
     @staticmethod
     def predictImageInZip(_zipfolder, apath, vgg16_predictions, vgg19_predictions):
