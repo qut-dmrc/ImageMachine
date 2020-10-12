@@ -13,3 +13,6 @@ log: true                                          #[boolean][default: false]
 
 im -metadata "2020-02_image_urls_by_day.csv" -fieldname "media_url" -s 50 -d
 im -metadata "2020-02_image_urls_by_day.csv" -fieldname "media_url" -s 50
+im -img fb -s 50
+im -metadata jane.txy.json -img downloads\user\jane.txy
+im -metadata jane.txy.json -img downloads\user\jane.txy -zip downloads.zip

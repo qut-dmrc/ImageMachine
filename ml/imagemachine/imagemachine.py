@@ -141,8 +141,7 @@ class ImageMachine:
                 filename = url.split('/')[-1]
                 if response:
                     img = Image.open(BytesIO(response.content))
-                    new_metadata.append(node)
-                    executor.submit(self.predictImageOnline, img, vgg16_predictions, vgg19_predictions)
+                    executor.submit(self.predictImageOnline, img, new_metadata, node, vgg16_predictions, vgg19_predictions)
                     if datasize:
                         datasize -= 1
                         if datasize == 0:
@@ -174,14 +173,28 @@ class ImageMachine:
                     apath = node['_mediaPath'][0].replace('\\','/')
                     apath = apath.split('/')[-1] # filename only
                     if os.path.exists(os.path.join(source_file,apath)):
-                        new_metadata.append(node)
-                        executor.submit(self.predictImage, source_file, apath, vgg16_predictions, vgg19_predictions)
+                        # new_metadata.append(node)
+                        # executor.submit(self.predictImage, source_file, apath, vgg16_predictions, vgg19_predictions)
+                        executor.submit(self.predictImage, source_file, apath, new_metadata, node, vgg16_predictions, vgg19_predictions, True)
                         if datasize:
                             datasize -= 1
                             if datasize == 0:
                                 break
                 metadata = new_metadata
-
+            # # correct version, non concurrent
+            # for node in metadata:
+            #     apath = node['_mediaPath'][0].replace('\\','/')
+            #     apath = apath.split('/')[-1] # filename only
+            #     if os.path.exists(os.path.join(source_file,apath)):
+            #         new_metadata.append(node)
+            #         output = predict_image(Image.open(os.path.join(source_file,apath)))
+            #         vgg16_predictions.append(output[0])
+            #         vgg19_predictions.append(output[1])
+            #         if datasize:
+            #             datasize -= 1
+            #             if datasize == 0:
+            #                 break
+            # metadata = new_metadata
         ## no metadata
         else:
             logging.info('{}:No metadata provided, creating new metadata...'.format(datetime.datetime.now()))
@@ -189,9 +202,10 @@ class ImageMachine:
                 for path, subdirs, files in os.walk(source_file):
                     for name in files:
                         folder = os.path.split(path)[-1]
-                        apath = os.path.join(folder, name)
-                        self.appendToMetadata(apath, metadata)
-                        executor.submit(self.predictImage, path, name, vgg16_predictions, vgg19_predictions)
+                        node = os.path.join(folder, name)
+                        # self.appendToMetadata(node, metadata)
+                        # executor.submit(self.predictImage, path, name, vgg16_predictions, vgg19_predictions)
+                        executor.submit(self.predictImage, path, name, metadata, node, vgg16_predictions, vgg19_predictions, False)
                         if datasize:
                             datasize -= 1
                             if datasize == 0:
@@ -222,8 +236,8 @@ class ImageMachine:
                 for node in metadata:
                     apath = node['_mediaPath'][0].replace('\\','/')
                     if archive.exists(apath):
-                        new_metadata.append(node)
-                        executor.submit(self.predictImageInZip, archive, apath, vgg16_predictions, vgg19_predictions)
+                        # new_metadata.append(node)
+                        executor.submit(self.predictImageInZip, archive, apath, new_metadata, node, vgg16_predictions, vgg19_predictions, True)
                         if datasize:
                             datasize -= 1
                             if datasize == 0:
@@ -238,8 +252,8 @@ class ImageMachine:
                     apath = apath[1:]
                     # print(apath, type(apath)) #
                     ## create metadata
-                    self.appendToMetadata(apath, metadata)
-                    executor.submit(self.predictImageInZip, archive, apath, vgg16_predictions, vgg19_predictions)
+                    # self.appendToMetadata(apath, metadata)
+                    executor.submit(self.predictImageInZip, archive, apath, metadata, apath, vgg16_predictions, vgg19_predictions, False)
                     if datasize:
                         datasize -= 1
                         if datasize == 0:
@@ -267,25 +281,31 @@ class ImageMachine:
         writeJSONToFile("../graph/static/clusters_{}.json".format(datasize), clusterData, 'w')
         logging.info('{}:Clusters saved to static folder. Clustering time: {}'.format(datetime.datetime.now(), exec_time))
 
-    @staticmethod
-    def predictImageInZip(_zipfolder, apath, vgg16_predictions, vgg19_predictions):
+    def predictImageInZip(self, _zipfolder, apath, metadata, node, vgg16_predictions, vgg19_predictions, isNode):
         with _zipfolder.open(apath,'rb') as image:
             ## Model Filters
             output = predict_image(Image.open(image))
             vgg16_predictions.append(output[0])
             vgg19_predictions.append(output[1])
+            if isNode:
+                metadata.append(node)
+            else:
+                self.appendToMetadata(node, metadata)
 
-    @staticmethod
-    def predictImage(_folder, apath, vgg16_predictions, vgg19_predictions):
+    def predictImage(self, _folder, apath, metadata, node, vgg16_predictions, vgg19_predictions, isNode):
         output = predict_image(Image.open(os.path.join(_folder,apath)))
         vgg16_predictions.append(output[0])
         vgg19_predictions.append(output[1])
+        if isNode:
+            metadata.append(node)
+        else:
+            self.appendToMetadata(node, metadata)
 
-    @staticmethod
-    def predictImageOnline(img, vgg16_predictions, vgg19_predictions):
+    def predictImageOnline(self, img, metadata, node, vgg16_predictions, vgg19_predictions):
         output = predict_image(img)
         vgg16_predictions.append(output[0])
         vgg19_predictions.append(output[1])
+        metadata.append(node)
 
     @staticmethod
     def appendToMetadata(apath, metadata, node_meta=None, url=None):
