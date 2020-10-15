@@ -1,8 +1,31 @@
 import scipy.spatial.distance
 import scipy.cluster.hierarchy
+from neo4j import GraphDatabase
 
+def create_cluster_node(tx, name, distance, metadata, isLeaf):
+    if isLeaf:
+        query = ("CREATE (n:LEAF {name: $name, distance: $distance, metadata:$metadata}) RETURN ID(n)")
+        metadata = metadata['_mediaPath'][0]
+    else:
+        query = ("CREATE (n:Node {name: $name, distance: $distance, metadata:$metadata}) RETURN ID(n)")
+        metadata = None
+    result = tx.run(query, name = name, distance = distance, metadata = metadata)
+    _id = result.single()[0]
+    return _id
 
-def descend_cluster(cluster_node, tree_node, metadata):
+def add_child(tx, parent_id, child_id, model):
+    create_cluster_node
+    query = (
+        "MATCH (parent:Node) WHERE ID(parent)=$parentID "
+        "MATCH (child) WHERE ID(child)=$childID "
+        "CREATE (parent)-[:HAS_CHILD {model:$model}]->(child)"
+        )
+    tx.run(query, parentID = parent_id, childID = child_id, model = model)
+
+def descend_cluster(cluster_node, tree_node, metadata, driver, model):
+    with driver.session() as session:
+        isLeaf = type(tree_node['name']) is int and tree_node['name'] < len(metadata)
+        _id = session.write_transaction(create_cluster_node, tree_node['name'], tree_node['distance'], tree_node['metadata'], isLeaf)
     for cluster_child in [cluster_node.left, cluster_node.right]:
         if cluster_child:
             new_node = {
@@ -11,16 +34,18 @@ def descend_cluster(cluster_node, tree_node, metadata):
                 'children': [],
                 'metadata': {}
             }
-
             # If a leaf node
             if cluster_child.id < len(metadata):
                 new_node['metadata'] = metadata[cluster_child.id]
 
             tree_node['children'].append(new_node)
-            descend_cluster(cluster_child, new_node, metadata)
+            child_id = descend_cluster(cluster_child, new_node, metadata, driver, model)
+            with driver.session() as session:
+                session.write_transaction(add_child, _id, child_id, model)
+    return _id
 
 
-def clump(predictions, metadata, method='average', metric='euclidean'):
+def clump(predictions, metadata, model, method='average', metric='euclidean'):
     pairwise_distances = scipy.spatial.distance.pdist(predictions, metric)
     clusters = scipy.cluster.hierarchy.linkage(pairwise_distances, method, metric)
 
@@ -32,5 +57,8 @@ def clump(predictions, metadata, method='average', metric='euclidean'):
         'children': [],
         'metadata': {}
     }
-    descend_cluster(root_node, tree, metadata)
+    # Neo4j Driver
+    driver = GraphDatabase.driver("bolt://localhost:7687", auth=("neo4j", "abc123"))
+    descend_cluster(root_node, tree, metadata, driver, model)
+    driver.close()
     return tree

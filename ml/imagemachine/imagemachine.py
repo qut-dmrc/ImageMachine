@@ -89,7 +89,7 @@ class ImageMachine:
             execution_time.append(exec_time)
         return execution_time
 
-    def get_metadata(self, src_meta, fieldname, src_img=None, datasize=None):
+    def get_metadata(self, src_meta, fieldname=None, src_img=None, datasize=None):
         src_meta_abs = os.path.join(self.src_meta_parent, src_meta)
         if src_meta.split('.')[-1] == 'csv':
             logging.info('{}:Reading CSV metadata'.format(datetime.datetime.now()))
@@ -270,10 +270,12 @@ class ImageMachine:
             vgg16_predictions = np.load(os.path.join(self.src_meta_parent, vgg16_predictions))
         if not isinstance(vgg19_predictions,list):
             vgg19_predictions = np.load(os.path.join(self.src_meta_parent, vgg19_predictions))
+        if metadata_out:
+            metadata_out = self.get_metadata(metadata_out, datasize)
         start_time = time.time()
         logging.info('{}:Clustering images'.format(datetime.datetime.now()))
-        tree_vgg16 = clump(vgg16_predictions, metadata_out)
-        tree_vgg19 = clump(vgg19_predictions, metadata_out)
+        tree_vgg16 = clump(vgg16_predictions, metadata_out, "vgg16")
+        tree_vgg19 = clump(vgg19_predictions, metadata_out, "vgg19")
         exec_time = time.time()-start_time
         clusterData = {}
         clusterData['tree_vgg16'] = tree_vgg16
