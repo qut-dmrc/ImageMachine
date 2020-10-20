@@ -270,7 +270,7 @@ class ImageMachine:
             vgg16_predictions = np.load(os.path.join(self.src_meta_parent, vgg16_predictions))
         if not isinstance(vgg19_predictions,list):
             vgg19_predictions = np.load(os.path.join(self.src_meta_parent, vgg19_predictions))
-        if metadata_out:
+        if not isinstance(metadata_out,list):
             metadata_out = self.get_metadata(metadata_out, datasize)
         start_time = time.time()
         logging.info('{}:Clustering images'.format(datetime.datetime.now()))
