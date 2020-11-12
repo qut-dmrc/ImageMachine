@@ -5,6 +5,10 @@ body {
     margin: 0;
 }
 
+.test-color-box {
+    background-color:rgb(127,127,0);
+}
+
 #imagePopup {
     display: none;
     width: 75vw;
@@ -80,9 +84,76 @@ svg {
     /*background-color: lightblue;*/
 }
 
-h1, #controls, #statistics, #data, #gallery select {
+h1, #models, #controls, #statistics, #data, #gallery select, 
+#gallery h3, #imageGallery, #hashTags{
     /*background-color: lightgreen;*/
     margin-left: 20px;
+}
+
+#colorCode {
+    position: relative;
+    float: right;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    max-width: 100px;
+}
+
+#colorCode div{
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    margin-bottom: 0px;
+}
+
+#colorCode div #colorBox{
+    margin-bottom: 0px;
+}
+
+#colorCode p {
+    padding: 0px;
+    margin: 0px;
+}
+
+#colorBox {
+    max-width: 10px;
+    height: 10px;
+    display: inline;
+    background-color: #b3aa2c;
+    margin-right: 5px;
+}
+
+#hashTags{
+    display: flex;
+    flex-direction: default;
+    justify-content: flex-start;
+    align-items: center;
+    flex-wrap: wrap;
+    align-content: flex-start;
+}
+
+#hashTags h2 {
+    display: block
+}
+
+.hashtag {
+    border: 1px #aab2a3 solid;
+    border-radius: 1px;
+    padding: 5px;
+    max-width: 20%;
+    margin-right: 5px;
+    font-size: 0.8em;
+    text-align: center;
+}
+
+#right div .hashtag {
+    margin-bottom: 5px;
+}
+
+.hashtag:hover {
+    color: white;
+    border-color: white;
+    background-color: #aab2a3;
 }
 
 #controls form {
@@ -110,15 +181,19 @@ button, select {
 
 #imageGallery div img {
     width: 100%;
+    height: 150px;
     margin-left: auto;
     margin-right: auto;
     display: block;
     cursor: pointer;
+    border: 5px #2e2e2e solid;
 }
 
-#flatValue {
-    color: white;
-    border: none;
+#flatValue, #nodeName, #colorNode {
+    color: #aab2a3;
+    border: 1px solid none;
+    border-radius: 2px;
+    width: 100px;
     background-color: #2e2e2e;
 }
 

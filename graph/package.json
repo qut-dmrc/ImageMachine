@@ -4,8 +4,10 @@
   "description": "Use d3 to visualise hierarchical clusters",
   "private": true,
   "scripts": {
-    "build": "webpack --config=webpack.config.js",
-    "dev": "webpack --watch ",
+    "build": "webpack --config=webpack.config.js ",
+    "dev": "webpack-dev-server",
+    "watch": "webpack --watch",
+    "prod": "webpack --config=webpack.config.js -p",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",

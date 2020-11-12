@@ -37,4 +37,5 @@ Rename the clusters_<number>.json in graph/dist/static to clusters.json
 Move the folder of images to dist if any
 npm install
 npm run build
+npm run dev
 

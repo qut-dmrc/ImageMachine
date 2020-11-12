@@ -17,3 +17,4 @@ im -img fb -s 50
 im -metadata jane.txy.json -img downloads\user\jane.txy
 im -metadata jane.txy.json -img downloads\user\jane.txy -zip downloads.zip
 im -clustering -metadata jane.txy.json -vgg16 vgg16_jane.npy -vgg19 vgg19_jane.npy
+im -img "qld_election_candidate_images_2020-10-26" -metadata "qld_election_candidate_images_2020-10-26.csv" -fieldname "image_url" -s 100

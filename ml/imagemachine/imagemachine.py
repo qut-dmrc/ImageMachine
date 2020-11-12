@@ -103,7 +103,7 @@ class ImageMachine:
 
     def CSVtoJSON(self, src_meta_abs, fieldname, src_media=None, datasize=None):
         logging.info('{}:Converting CSV to JSON'.format(datetime.datetime.now()))
-        df = pd.read_csv(src_meta_abs)
+        df = pd.read_csv(src_meta_abs, dtype='str')
         header = df.columns.values
         if datasize:
             length = min(df.shape[0], datasize)
@@ -120,7 +120,8 @@ class ImageMachine:
             else:
                 image_path = df.iloc[i][fieldname]
             self.appendToMetadata(image_path, metadata, row, url)
-        writeJSONToFile(os.path.join(self.src_meta_parent,'metadata.json'), metadata, 'w')
+        
+        # writeJSONToFile(os.path.join(self.src_meta_parent,'metadata.json'), metadata, 'w')
         return metadata
 
     def readFromOnline(self, metadata, datasize=None):
