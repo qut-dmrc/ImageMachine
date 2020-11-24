@@ -173,27 +173,59 @@ abstract class ClusterGraph {
         }
     }
 
+    // /**
+    //  * Generate n colours in HSL 
+    //  */
+    // protected colours(n: number) {
+    //     const colours: number[] = [];
+    //     const baseColour = 360 / n;
+    //     for (let i = 0; i < n; i++) {
+    //         // colours.push("hsl(" + (i * baseColour % 360) + ",100%,50%)");
+    //         colours.push((i * baseColour % 360));
+    //     }
+    //     return colours;
+    // }
     /**
-     * Generate n colours
+     * Generate n colours in RGB
      */
     protected colours(n: number) {
-        const colours: number[] = [];
-        const baseColour = 360 / n;
-        for (let i = 0; i < n; i++) {
-            // colours.push("hsl(" + (i * baseColour % 360) + ",100%,50%)");
-            colours.push((i * baseColour % 360));
-        }
+        const colours: [number, number, number][] = []; //array of RGB tuples
+        colours.push([255,0,0]) //red
+        colours.push([0,255,0]) //green
+        if (n >= 3)
+            colours.push([0,0,255]) // blue
         return colours;
     }
 
-    protected getColour(colorMap: {[key: string]: number}, categoryMap:{[key: string]: number}) {
-        let finalColor = 0;
+    protected getColour(colorMap: {[key: string]: [number,number,number]},
+         categoryMap:{[key: string]: number},
+         name:string) {
+        let rgb: number[] = [0,0,0];
+        let color: number[];
+        let temp: number[];
+        // number of catogeries (2 or 3) * 255/ total counts in this cluster
+        let quotaPerUnit = Object.keys(colorMap).length*255.0/categoryMap['total']
         for (const [key,value] of Object.entries(categoryMap)) {
             if (key == 'total')
                 continue;
-            finalColor += categoryMap[key]/categoryMap['total'] * colorMap[key] 
+            color = colorMap[key].map( e => { 
+                if (e > 0)
+                    return categoryMap[key] * quotaPerUnit; 
+                return e * categoryMap[key] * quotaPerUnit; 
+            })
+            temp = rgb.map( (e,idx) => {
+                if (e + color[idx] < 256){
+                    return e + color[idx];
+                }else{
+                    return 255;
+                } 
+            })
+            rgb = [...temp]
         }
-        return ("hsl(" + finalColor + ",100%,50%)");
+        // if (name == "163"){    
+        //     console.log("rgb("+rgb[0]+","+rgb[1]+","+rgb[2]+")")
+        // }
+        return ("rgb("+rgb[0]+","+rgb[1]+","+rgb[2]+")");
     }
 
     /**
@@ -622,7 +654,8 @@ export class Dendrogram extends ClusterGraph {
         const attributeName = this.colorNodeInput.value.split(',')[0]
         const colorDimension = parseInt(this.colorNodeInput.value.split(',')[1])
         const colors = this.colours(colorDimension);
-        const colorMap: {[key:string]: number} = {};
+        // const colorMap: {[key:string]: number} = {};
+        const colorMap: {[key:string]: [number,number,number]} = {};
         const nodeCategories: {[key:string]: {[key: string]: any}} = {}
         // d3.select("svg g.nodes")
         //     .selectAll("circle.node")
@@ -639,7 +672,8 @@ export class Dendrogram extends ClusterGraph {
             let node:HTMLDivElement = document.createElement("div")
             let colorBox = document.createElement('div')
             colorBox.id = 'colorBox'
-            colorBox.style.backgroundColor = "hsl("+value+",100%,50%)";
+            // colorBox.style.backgroundColor = "hsl("+value+",100%,50%)";
+            colorBox.style.backgroundColor = "rgb("+value[0]+","+value[1]+","+value[2]+")";
             let keyText = document.createElement("p");
             keyText.innerHTML = key;
             node.appendChild(colorBox);
@@ -660,8 +694,8 @@ export class Dendrogram extends ClusterGraph {
     }
 
     colorGraph(datum: HierarchyDatum, key_attr: string, 
-        nodeCategories: {[key:string]: {[key: string]: any}}, colors: number[], 
-        colorMap:{[key:string]: number}) {
+        nodeCategories: {[key:string]: {[key: string]: any}}, colors: [number,number,number][], 
+        colorMap:{[key:string]: [number,number,number]}) {
         // update graph color based on an attribute
         let categories:{[key: string]: any} = {'total':0}
         // leaf nodes
@@ -669,7 +703,7 @@ export class Dendrogram extends ClusterGraph {
             if (datum.metadata.node[key_attr] != null){
                 String(datum.metadata.node[key_attr]).split(',').forEach( (item:string) => {
                     // claim a color
-                    if (!(item in colorMap)){
+                    if (!(item in colorMap) && colors.length > 0){
                         colorMap[item] = colors.pop();
                     }
                     if (item in categories){
@@ -720,7 +754,7 @@ export class Dendrogram extends ClusterGraph {
             // }
         }       
         nodeCategories[datum.name] = categories
-        datum.metadata.color = this.getColour(colorMap, categories);
+        datum.metadata.color = this.getColour(colorMap, categories, datum.name);
         // console.log(datum.name+" "+this.getColour(colorMap, categories))
     }
 
