@@ -36,6 +36,7 @@ abstract class ClusterGraph {
     protected updateTimeout: number | undefined;
 
     protected svg: d3.Selection<d3.BaseType, unknown, HTMLElement, any>;
+    protected legendBox: d3.Selection<SVGGElement, unknown, HTMLElement, any>;
     protected svgBounds: ClientRect | DOMRect;
     protected zoom: d3.ZoomBehavior<Element, unknown>;
 
@@ -109,6 +110,9 @@ abstract class ClusterGraph {
             .on("click", () => {
                 this.svg.call(this.zoom.transform, d3.zoomIdentity.scale(1))
             })
+        this.legendBox = this.svg
+            .append("rect")
+            .attr("id","legend-container")
     }
 
     /**
@@ -666,20 +670,53 @@ export class Dendrogram extends ClusterGraph {
         console.log(nodeCategories)
         console.log(colors)
         console.log(colorMap)
-        let legendBox = document.querySelector('#colorCode');
-        legendBox.innerHTML = ""
-        for ( const [key,value] of Object.entries(colorMap)){
-            let node:HTMLDivElement = document.createElement("div")
-            let colorBox = document.createElement('div')
-            colorBox.id = 'colorBox'
-            // colorBox.style.backgroundColor = "hsl("+value+",100%,50%)";
-            colorBox.style.backgroundColor = "rgb("+value[0]+","+value[1]+","+value[2]+")";
-            let keyText = document.createElement("p");
-            keyText.innerHTML = key;
-            node.appendChild(colorBox);
-            node.appendChild(keyText);
-            legendBox.appendChild(node);
-        }
+        
+        //adding legend
+        this.legendBox
+            .style("display","inline")
+        
+        this.svg.selectAll("circle .legend")
+            .data(Object.keys(colorMap))
+            .enter()
+            .append("circle")
+            .classed("legend", true)
+            .attr("r", "8")
+            .attr("cx", "92%")
+            .attr("cy", (n, d) => {
+                return 30+d*30;
+            })
+            .style("fill", (n) => {
+                return "rgb("+colorMap[n][0]+","+colorMap[n][1]+","+colorMap[n][2]+")";
+            })
+
+        this.svg.selectAll("text .legend")
+            .data(Object.keys(colorMap))
+            .enter()
+            .append("text")
+            .classed("legend", true)
+            .attr("font-family", "sans-serif")
+            .attr("font-size", "20px")
+            .attr("x", "95%")
+            .attr("y", (d, i) => {
+                return 35+i*30;
+            })
+            .text(d => { return d;})
+            .style("fill", "#3d3d3d");
+
+        // let legendBox = document.querySelector('#colorCode');
+        // legendBox.innerHTML = ""
+        // for ( const [key,value] of Object.entries(colorMap)){
+        //     let node:HTMLDivElement = document.createElement("div")
+        //     let colorBox = document.createElement('div')
+        //     colorBox.id = 'colorBox'
+        //     // colorBox.style.backgroundColor = "hsl("+value+",100%,50%)";
+        //     colorBox.style.backgroundColor = "rgb("+value[0]+","+value[1]+","+value[2]+")";
+        //     let keyText = document.createElement("p");
+        //     keyText.innerHTML = key;
+        //     node.appendChild(colorBox);
+        //     node.appendChild(keyText);
+        //     legendBox.appendChild(node);
+        // }
         d3.select("svg g.nodes")
             .selectAll("circle.node")
             .data(this.root.descendants())
