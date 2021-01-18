@@ -36,7 +36,6 @@ abstract class ClusterGraph {
     protected updateTimeout: number | undefined;
 
     protected svg: d3.Selection<d3.BaseType, unknown, HTMLElement, any>;
-    protected legendBox: d3.Selection<SVGGElement, unknown, HTMLElement, any>;
     protected svgBounds: ClientRect | DOMRect;
     protected zoom: d3.ZoomBehavior<Element, unknown>;
 
@@ -110,9 +109,6 @@ abstract class ClusterGraph {
             .on("click", () => {
                 this.svg.call(this.zoom.transform, d3.zoomIdentity.scale(1))
             })
-        this.legendBox = this.svg
-            .append("rect")
-            .attr("id","legend-container")
     }
 
     /**
@@ -177,59 +173,27 @@ abstract class ClusterGraph {
         }
     }
 
-    // /**
-    //  * Generate n colours in HSL 
-    //  */
-    // protected colours(n: number) {
-    //     const colours: number[] = [];
-    //     const baseColour = 360 / n;
-    //     for (let i = 0; i < n; i++) {
-    //         // colours.push("hsl(" + (i * baseColour % 360) + ",100%,50%)");
-    //         colours.push((i * baseColour % 360));
-    //     }
-    //     return colours;
-    // }
     /**
-     * Generate n colours in RGB
+     * Generate n colours
      */
     protected colours(n: number) {
-        const colours: [number, number, number][] = []; //array of RGB tuples
-        colours.push([255,0,0]) //red
-        colours.push([0,255,0]) //green
-        if (n >= 3)
-            colours.push([0,0,255]) // blue
+        const colours: number[] = [];
+        const baseColour = 360 / n;
+        for (let i = 0; i < n; i++) {
+            // colours.push("hsl(" + (i * baseColour % 360) + ",100%,50%)");
+            colours.push((i * baseColour % 360));
+        }
         return colours;
     }
 
-    protected getColour(colorMap: {[key: string]: [number,number,number]},
-         categoryMap:{[key: string]: number},
-         name:string) {
-        let rgb: number[] = [0,0,0];
-        let color: number[];
-        let temp: number[];
-        // number of catogeries (2 or 3) * 255/ total counts in this cluster
-        let quotaPerUnit = Object.keys(colorMap).length*255.0/categoryMap['total']
+    protected getColour(colorMap: {[key: string]: number}, categoryMap:{[key: string]: number}) {
+        let finalColor = 0;
         for (const [key,value] of Object.entries(categoryMap)) {
             if (key == 'total')
                 continue;
-            color = colorMap[key].map( e => { 
-                if (e > 0)
-                    return categoryMap[key] * quotaPerUnit; 
-                return e * categoryMap[key] * quotaPerUnit; 
-            })
-            temp = rgb.map( (e,idx) => {
-                if (e + color[idx] < 256){
-                    return e + color[idx];
-                }else{
-                    return 255;
-                } 
-            })
-            rgb = [...temp]
+            finalColor += categoryMap[key]/categoryMap['total'] * colorMap[key] 
         }
-        // if (name == "163"){    
-        //     console.log("rgb("+rgb[0]+","+rgb[1]+","+rgb[2]+")")
-        // }
-        return ("rgb("+rgb[0]+","+rgb[1]+","+rgb[2]+")");
+        return ("hsl(" + finalColor + ",100%,50%)");
     }
 
     /**
@@ -655,11 +619,10 @@ export class Dendrogram extends ClusterGraph {
     }
 
     runColorGraph(){
-        const attributeName = this.colorNodeInput.value.split(',')[0]
-        const colorDimension = parseInt(this.colorNodeInput.value.split(',')[1])
+        const attributeName = this.colorNodeInput.value
+        const colorDimension = 3
         const colors = this.colours(colorDimension);
-        // const colorMap: {[key:string]: number} = {};
-        const colorMap: {[key:string]: [number,number,number]} = {};
+        const colorMap: {[key:string]: number} = {};
         const nodeCategories: {[key:string]: {[key: string]: any}} = {}
         // d3.select("svg g.nodes")
         //     .selectAll("circle.node")
@@ -667,56 +630,21 @@ export class Dendrogram extends ClusterGraph {
         //     .filter((n) => n.data.name.toString() === nodeName)
         //     // .dispatch("mouseover"); // to zoom in, change to 'click'
         this.colorGraph(this.root.data, attributeName, nodeCategories, colors, colorMap);
-        console.log(nodeCategories)
-        console.log(colors)
-        console.log(colorMap)
-        
-        //adding legend
-        this.legendBox
-            .style("display","inline")
-        
-        this.svg.selectAll("circle .legend")
-            .data(Object.keys(colorMap))
-            .enter()
-            .append("circle")
-            .classed("legend", true)
-            .attr("r", "8")
-            .attr("cx", "92%")
-            .attr("cy", (n, d) => {
-                return 30+d*30;
-            })
-            .style("fill", (n) => {
-                return "rgb("+colorMap[n][0]+","+colorMap[n][1]+","+colorMap[n][2]+")";
-            })
-
-        this.svg.selectAll("text .legend")
-            .data(Object.keys(colorMap))
-            .enter()
-            .append("text")
-            .classed("legend", true)
-            .attr("font-family", "sans-serif")
-            .attr("font-size", "20px")
-            .attr("x", "95%")
-            .attr("y", (d, i) => {
-                return 35+i*30;
-            })
-            .text(d => { return d;})
-            .style("fill", "#3d3d3d");
-
-        // let legendBox = document.querySelector('#colorCode');
-        // legendBox.innerHTML = ""
-        // for ( const [key,value] of Object.entries(colorMap)){
-        //     let node:HTMLDivElement = document.createElement("div")
-        //     let colorBox = document.createElement('div')
-        //     colorBox.id = 'colorBox'
-        //     // colorBox.style.backgroundColor = "hsl("+value+",100%,50%)";
-        //     colorBox.style.backgroundColor = "rgb("+value[0]+","+value[1]+","+value[2]+")";
-        //     let keyText = document.createElement("p");
-        //     keyText.innerHTML = key;
-        //     node.appendChild(colorBox);
-        //     node.appendChild(keyText);
-        //     legendBox.appendChild(node);
-        // }
+        // console.log(nodeCategories)
+        // console.log(colorMap)
+        let legendBox = document.querySelector('#colorCode');
+        legendBox.innerHTML = ""
+        for ( const [key,value] of Object.entries(colorMap)){
+            let node:HTMLDivElement = document.createElement("div")
+            let colorBox = document.createElement('div')
+            colorBox.id = 'colorBox'
+            colorBox.style.backgroundColor = "hsl("+value+",100%,50%)";
+            let keyText = document.createElement("p");
+            keyText.innerHTML = key;
+            node.appendChild(colorBox);
+            node.appendChild(keyText);
+            legendBox.appendChild(node);
+        }
         d3.select("svg g.nodes")
             .selectAll("circle.node")
             .data(this.root.descendants())
@@ -726,20 +654,21 @@ export class Dendrogram extends ClusterGraph {
                 }
             });
         // this.updateZoom(node);  // to zoom in
-        
+            
+
     }
 
     colorGraph(datum: HierarchyDatum, key_attr: string, 
-        nodeCategories: {[key:string]: {[key: string]: any}}, colors: [number,number,number][], 
-        colorMap:{[key:string]: [number,number,number]}) {
+        nodeCategories: {[key:string]: {[key: string]: any}}, colors: number[], 
+        colorMap:{[key:string]: number}) {
         // update graph color based on an attribute
         let categories:{[key: string]: any} = {'total':0}
         // leaf nodes
         if (datum.metadata.node){
-            if (datum.metadata.node[key_attr] != null){
-                String(datum.metadata.node[key_attr]).split(',').forEach( (item:string) => {
+            if (datum.metadata.node[key_attr]){
+                datum.metadata.node[key_attr].split(',').forEach( (item:string) => {
                     // claim a color
-                    if (!(item in colorMap) && colors.length > 0){
+                    if (!(item in colorMap)){
                         colorMap[item] = colors.pop();
                     }
                     if (item in categories){
@@ -790,7 +719,7 @@ export class Dendrogram extends ClusterGraph {
             // }
         }       
         nodeCategories[datum.name] = categories
-        datum.metadata.color = this.getColour(colorMap, categories, datum.name);
+        datum.metadata.color = this.getColour(colorMap, categories);
         // console.log(datum.name+" "+this.getColour(colorMap, categories))
     }
 
