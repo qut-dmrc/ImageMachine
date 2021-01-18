@@ -1,6 +1,6 @@
 import scipy.spatial.distance
 import scipy.cluster.hierarchy
-from neo4j import GraphDatabase
+# from neo4j import GraphDatabase
 
 # MATCH (n {name:"root"}) -[r:HAS_CHILD*1..4 {model:'vgg16'}]- (a) RETURN n,a to filter path
 def create_cluster_node(tx, name, distance, metadata, isLeaf):

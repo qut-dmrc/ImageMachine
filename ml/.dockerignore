@@ -1,0 +1,12 @@
+*.log
+default.yml
+__pycache__
+*.egg-info
+input_data
+Dockerfile*
+docker-compose*
+.dockerignore
+.git
+.gitignore
+README.md
+LICENSE

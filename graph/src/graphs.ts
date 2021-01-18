@@ -726,8 +726,7 @@ export class Dendrogram extends ClusterGraph {
                 }
             });
         // this.updateZoom(node);  // to zoom in
-            
-
+        
     }
 
     colorGraph(datum: HierarchyDatum, key_attr: string, 

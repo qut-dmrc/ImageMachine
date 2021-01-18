@@ -1,6 +1,6 @@
 import click
 import yaml
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 from .imagemachine import *
 
 @click.command()
@@ -38,10 +38,10 @@ def main(config, img, _zip, metadata, fieldname, download, size, time, size_list
             size_list = [int(i) for i in size_list]
             execution_time = im.time_process_images(size_list, img, _zip, metadata, fieldname)
             print(execution_time)
-            plt.plot(size_list, execution_time)
-            plt.xlabel('Data size')
-            plt.ylabel('Execution time')
-            plt.show()
+            # plt.plot(size_list, execution_time)
+            # plt.xlabel('Data size')
+            # plt.ylabel('Execution time')
+            # plt.show()
     elif clustering:
         im.clustering(vgg16, vgg19, metadata, size)
     else:

@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>ImageCluster</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="main.js"></script>
+</head>
+<body>
+<script>
+    /**
+     * Trigger input event when slider dragged
+     * @param element
+     */
+    function flatteningUpdated(element) {
+        element.dispatchEvent(new Event("input"));
+    }
+</script>
+<div id="imagePopup"></div>
+<div id="fetchPopup">Fetching data</div>
+
+<div id="main">
+    <div id="left">
+    </div>
+    <div id="right">
+        <h1>Models</h1>
+        <div id="models">
+            <select id="models-dropdown" autocomplete="off">
+            </select>
+        </div>
+        <h1>Controls</h1>
+        <div id="controls">
+            <form autocomplete="off">
+                <label for="flatSlider">Cluster distance flattening</label>
+                <input id="flatSlider" type="range" step="0.000001"
+                       oninput="flatValue.value = flatSlider.value; flatteningUpdated(flatValue)"
+                       value="0">
+                <input id="flatValue" type="text" oninput="flatSlider.value = flatValue.value" value="0">
+                <label>Object query</label>
+                <input type="text" value="unavailable" disabled>
+                <label>Display</label>
+                <button id="zoomReset">Reset</button>
+            </form>
+        </div>
+        <h1>Statistics</h1>
+        <div id="statistics">
+            <p>Node name: <span><input id="nodeName" type="text" value="root"></span></p>
+            <p>Leaves: <span id="leafCount"></span></p>
+            <p>Median cluster distance: <span id="descendantDistance"></span></p>
+            <p>Color based on attribute: <input id="colorNode" type="text" value="category,3"></input></p>
+            <div id="colorCode">
+            </div>
+        </div>
+        <h1>Images</h1>
+        <div id="gallery">
+            <select id="gallerySamples" autocomplete="off">
+                <option>Sample</option>
+                <option>All</option>
+            </select>
+            <select id="galleryMasks" autocomplete="off">
+                <option>Images</option>
+                <option>Masks</option>
+            </select>
+            <br> 
+            <h3>Hashtags</h3>
+            <div id="hashTags">
+                <div class="hashtag">Hash Tag 1</div>
+                <div class="hashtag">Hash Tag 2</div>
+                <div class="hashtag">Hash Tag 3</div>
+            </div>
+            <br>
+            <div id="imageGallery"></div>
+        </div>
+        <h1>Data</h1>
+        <div id="data">
+            <button id="exportButton" title="Export node and descendents' metadata">Export</button>
+            <a id="downloadAnchorElem" style="display:none"></a>
+
+            <h2>Objects</h2>
+            NOTE: There's a bug in object probability reporting, these values are not accurate
+            <table id="objectsTable">
+                <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Count</th>
+                    <th>Median probability</th>
+                </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+<!-- 
+            <h2>Users</h2>
+            <p>TODO</p>
+
+            <h2>Tagged users</h2>
+            <p>TODO</p>
+
+            <h2>Locations</h2>
+            <p>TODO</p>
+
+            <h2>Timestamps</h2>
+            <p>TODO</p>
+
+            <h2>Accessibility captions</h2>
+            <p>TODO</p>
+
+            <h2>Post type</h2>
+            <p>TODO</p>
+
+            <h2>Like counts</h2>
+            <p>TODO</p>
+
+            <h2>Comment counts</h2>
+            <p>TODO</p>
+
+            <h2>Sponsored status</h2>
+            <p>TODO</p> -->
+        </div>
+    </div>
+</div>
+</body>
+</html>
