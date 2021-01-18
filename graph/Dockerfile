@@ -5,7 +5,7 @@ WORKDIR /viz
 
 EXPOSE 8080
 
-COPY ["package.json","package-lock.json", "/viz/"]
+COPY ["package*.json", "/viz/"]
 
 RUN npm install
 
