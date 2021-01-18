@@ -30,10 +30,5 @@ module.exports = {
         publicPath: "/js",
         path: path.resolve(__dirname, 'dist')
     },
-    plugins: [
-        new CopyPlugin([
-            {from: 'static/clusters.json', to: 'clusters.json'}
-        ]),
-    ],
     devtool: "source-map"
 };
