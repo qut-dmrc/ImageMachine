@@ -9,7 +9,6 @@ output_data
 downloads
 metadata
 test2
-package-lock.json
 dist\main.js
 *.jpg
 *.png
