@@ -20,9 +20,7 @@ module.exports = {
     },
     devServer: {
         contentBase: path.join(__dirname, "dist"),
-        host: '0.0.0.0',
-        port: 8080,
-        disableHostcheck: true
+        port: 8080
     },
     resolve: {
         extensions: ['.tsx', '.ts', '.js']
