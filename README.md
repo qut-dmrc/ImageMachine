@@ -67,8 +67,8 @@ docker build -t im_viz .
 ```
 
 ### Running containers
-- *Mount your drive to docker*
-- Structure of *your_folder*
+- **Mount your drive to docker**
+- Structure of **your_folder**, metadata folder must exist even if you don't have any metadata (can be empty)
   ```
   your_folder/
    |images/
