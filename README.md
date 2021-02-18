@@ -50,6 +50,7 @@ To build two separate docker images with the Dockerfiles provided. One for build
 - Clone the code and switch to docker branch
 ```
 git clone https://github.com/qut-dmrc/ImageMachine.git
+cd ImageMachine
 git checkout docker
 ```
 
@@ -66,10 +67,24 @@ docker build -t im_viz .
 ```
 
 ### Running containers
+- *Mount your drive to docker*
+- Structure of *your_folder*
+  ```
+  your_folder/
+   |images/
+      |arianagrande/
+          |1.jpg
+          |2.jpg
+          |3.jpg
+          |...
+   |metadata/
+      |arianagrande.json
+  ```
 - Create cluster using im_ml
   * `docker run -ti --rm -v your_folder:/im/input_data <im_ml> bash` Subtitute `your_folder` with the absolute path to your folder and `im_ml` to the name you named your ml image. 
   * `pip install -e .`
   * `export LC_ALL=C.UTF-8`
+  * `mkdir input_data/metadata`
   * Run the command as shown in the command options. e.g. `im -metadata john_doe.json -img john_doe`. `john_doe.json` is the metadata and `john_doe` is the folder that contains all the images. Use `/` for the filepath. Press <return>, after finish processing, `clusters.json` will be stored in the `images` folder of `your_folder`. 
   * Type `exit` and press return/enter to exit the im_ml container.
 
