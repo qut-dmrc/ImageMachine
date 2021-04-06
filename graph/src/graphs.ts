@@ -16,7 +16,7 @@ export interface HierarchyDatum {
 }
 
 export interface PositionedHierarchyNode extends d3.HierarchyNode<HierarchyDatum> {
-    x: number,
+    x: number, 
     y: number
 }
 
@@ -429,22 +429,32 @@ export class Dendrogram extends ClusterGraph {
 
         // Get descendants
         const descendents: d3.HierarchyNode<HierarchyDatum>[] = [];
+        const node_cluster_ids: {[key: string]: string} = {};
+        const image_cluster_ids: {[key: string]: string} = {};
 
-        function addDescendents(node: d3.HierarchyNode<HierarchyDatum>) {
+        function addDescendents(node: d3.HierarchyNode<HierarchyDatum>, parent: d3.HierarchyNode<HierarchyDatum>) {
+            let parent_ids:string = ""
+            if (parent != null) {
+                parent_ids = node_cluster_ids[parent.data.name]
+            }
+            node_cluster_ids[node.data.name] = parent_ids +","+node.data.name
             descendents.push(node);
             if ("children" in node && node.children !== null) {
                 for (const child of node.children) {
-                    addDescendents(child);
+                    addDescendents(child, node);
                 }
             }
             if ("merged_children" in node.data && node.data.merged_children !== null) {
                 for (const child of node.data.merged_children) {
-                    addDescendents(child);
+                    addDescendents(child, node);
                 }
+            }
+            if (node.children == null) {
+                image_cluster_ids[node.data.metadata._mediaPath] = node_cluster_ids[node.data.name]
             }
 
         }
-        addDescendents(rootNode);
+        addDescendents(rootNode, null);
 
         // Get options
         const gallerySamplesElement = document.querySelector("#gallerySamples") as HTMLSelectElement;
@@ -465,7 +475,15 @@ export class Dendrogram extends ClusterGraph {
         document.querySelector("#leafCount").innerHTML = descendents.length.toString();
         document.querySelector("#descendantDistance").innerHTML =
             d3.median(descendents.filter((n) => n.data.children.length > 0).map((n) => n.data.distance)).toString();
-
+        // var textToSave = '';
+        // Object.keys(image_cluster_ids).forEach( key=> {
+        //     textToSave += key + image_cluster_ids[key] + '\n';
+        // })
+        // var hiddenElement = document.createElement('a');
+        // hiddenElement.href = 'data:attachment/text,' + encodeURI(textToSave);
+        // hiddenElement.target = '_blank';
+        // hiddenElement.download = 'myfile.txt';
+        // hiddenElement.click();
         // Add gallery
         const imageList: string[] = [];
         const imageListLength = 20;
