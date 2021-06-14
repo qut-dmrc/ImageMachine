@@ -111,12 +111,11 @@ docker build -t im_viz .
         -   `docker run -ti --rm -v /home/jane/im_folder:/im/input_data im_ml bash` Subtitute `/home/jane/im_folder` with the absolute path to your folder.
     -   (For Windows users)
         -   `docker run -ti --rm -v C:/home/jane/im_folder:/im/input_data im_ml bash` Subtitute `C:/home/jane/im_folder` with the absolute path to your folder.
--           With that command, you should now be inside your docker container. (You will see the change in your shell to `root@randomcharacters:/im#`)
--           Check if the docker container correctly hooks up with your image folder by commands `cd input_data && ls`, you should see `images` and `metadata` folders as included in im_folder and everything inside them.
+-             With that command, you should now be inside your docker container. (You will see the change in your shell to `root@randomcharacters:/im#`)
+-             Check if the docker container correctly hooks up with your image folder by commands `cd input_data && ls`, you should see `images` and `metadata` folders as included in im_folder and everything inside them.
 
     -   Go back to parent directory `cd ..`
     -   `pip install -e .` to setup the machine learning program.
-    -   `export LC_ALL=C.UTF-8`to set the encoding system to UTF-8
     -   Run the command as shown in the command options below. e.g. `im -img arianagrande`. `arianagrande` is the folder that contains all the images. Use `/` for the filepath should you need. Press return/enter key. After the ML process is done, `clusters.json` will be stored in the `images` folder of `im_folder`.
     -   When it is finished running type `exit` and press return/enter to exit the im_ml container.
     -   If you navigate to im_folder and list the content`cd im_folder/images && ls`(`cd im_folder/images && dir` for Windows), you can see the clusters.json has appeared in the folder as a result of writing it out from the docker container.

@@ -9,11 +9,12 @@ output_data
 downloads
 metadata
 test2
-dist\main.js
+dist2\main.js
+dist2
 *.jpg
 *.png
 graph/static
-graph/dist
 *.egg-info
 *.log
 main.js
+graph/package-lock.json

@@ -1,15 +1,17 @@
-from tensorflow.python.keras.applications.densenet import DenseNet201
-# from tensorflow.python.keras.applications.efficientnet import EfficientNetB7
-from tensorflow.python.keras.applications.inception_resnet_v2 import InceptionResNetV2
-from tensorflow.python.keras.applications.inception_v3 import InceptionV3
-from tensorflow.python.keras.applications.mobilenet import MobileNet
-from tensorflow.python.keras.applications.mobilenet_v2 import MobileNetV2
-from tensorflow.python.keras.applications.nasnet import NASNetMobile
-from tensorflow.python.keras.applications.resnet import ResNet101
-from tensorflow.python.keras.applications.resnet_v2 import ResNet50V2
+import ssl
+ssl._create_default_https_context = ssl._create_unverified_context
+# from tensorflow.python.keras.applications.densenet import DenseNet201
+# # from tensorflow.python.keras.applications.efficientnet import EfficientNetB7
+# from tensorflow.python.keras.applications.inception_resnet_v2 import InceptionResNetV2
+# from tensorflow.python.keras.applications.inception_v3 import InceptionV3
+# from tensorflow.python.keras.applications.mobilenet import MobileNet
+# from tensorflow.python.keras.applications.mobilenet_v2 import MobileNetV2
+# from tensorflow.python.keras.applications.nasnet import NASNetMobile
+# from tensorflow.python.keras.applications.resnet import ResNet101
+# from tensorflow.python.keras.applications.resnet_v2 import ResNet50V2
 from tensorflow.python.keras.applications.vgg16 import VGG16
 from tensorflow.python.keras.applications.vgg19 import VGG19
-from tensorflow.python.keras.applications.xception import Xception
+# from tensorflow.python.keras.applications.xception import Xception
 from tensorflow.python.keras.models import Model
 # from enum import Enum
 
