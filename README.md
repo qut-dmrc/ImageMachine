@@ -106,13 +106,14 @@ docker build -t im_viz .
     -   `docker image tag xueyingt96/image_machine:viz im_viz`
     -   `docker image tag xueyingt96/image_machine:ml im_ml`
 -   To create an image cluster using the im_ml
+
     -   (For Linux users)
         -   Type `pwd` to get to your current directory e.g Output: /home/jane
         -   `docker run -ti --rm -v /home/jane/im_folder:/im/input_data im_ml bash` Subtitute `/home/jane/im_folder` with the absolute path to your folder.
     -   (For Windows users)
         -   `docker run -ti --rm -v C:/home/jane/im_folder:/im/input_data im_ml bash` Subtitute `C:/home/jane/im_folder` with the absolute path to your folder.
--             With that command, you should now be inside your docker container. (You will see the change in your shell to `root@randomcharacters:/im#`)
--             Check if the docker container correctly hooks up with your image folder by commands `cd input_data && ls`, you should see `images` and `metadata` folders as included in im_folder and everything inside them.
+    -   With that command, you should now be inside your docker container. (You will see the change in your shell to `root@randomcharacters:/im#`)
+    -   Check if the docker container correctly hooks up with your image folder by commands `cd input_data && ls`, you should see `images` and `metadata` folders as included in im_folder and everything inside them.
 
     -   Go back to parent directory `cd ..`
     -   `pip install -e .` to setup the machine learning program.
