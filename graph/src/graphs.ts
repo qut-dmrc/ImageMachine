@@ -108,7 +108,7 @@ abstract class ClusterGraph {
         this.svg.call(this.zoom);
         d3.select("#zoomReset")
             .on("click", () => {
-                this.svg.call(this.zoom.transform, d3.zoomIdentity.scale(1))
+                this.draw(this.root)
             })
         this.legendBox = this.svg
             .append("rect")
