@@ -14,7 +14,7 @@ dist\main.js
 *.jpg
 *.png
 graph/static
-graph/dist
+graph/dist2
 *.egg-info
 *.log
 main.js

@@ -1,9 +1,5 @@
-import {
-    ClusterGraph,
-    Dendrogram,
-    BubbleGraph,
-    HierarchyDatum,
-} from "./graphs";
+import { ClusterGraph, Dendrogram, HierarchyDatum } from "./graphs";
+// import { BubbleGraph } from "./bubble";
 import * as d3 from "d3";
 
 /**
@@ -62,82 +58,78 @@ class ClusterGraphContainer {
         ".viz-nav a"
     ) as NodeListOf<HTMLAnchorElement>;
 
+    // private dendogram: Dendrogram;
+
+    // private bubblegraph: BubbleGraph;
+
     public async run() {
-        this.setupVizTypeListener();
+        // this.setupVizTypeListener();
         await this.getData();
         this.createData();
         this.maxClusterDistance();
-
-        this.displayViz("dendogram");
+        new Dendrogram(
+            this.root,
+            this.graph,
+            this.flatValueElement,
+            this.modelElement,
+            this.models,
+            this.containerSize
+        );
     }
 
-    private displayViz(vizType: String) {
-        let clusterGraph: ClusterGraph;
-        if ((vizType = "dendogram")) {
-            clusterGraph = new Dendrogram(
-                this.root,
-                this.graph,
-                this.flatValueElement,
-                this.modelElement,
-                this.models,
-                this.containerSize
-            );
-        }
-        if ((vizType = "bubble")) {
-            clusterGraph = new BubbleGraph(
-                this.root,
-                this.graph,
-                this.flatValueElement,
-                this.modelElement,
-                this.models,
-                this.containerSize
-            );
-        }
-        clusterGraph.draw(this.root);
-    }
+    // /**
+    //  * Set up visualisation type listener
+    //  */
+    // private setupVizTypeListener() {
+    //     this.vizOptions.forEach((viz) => {
+    //         viz.addEventListener("click", (e) => {
+    //             e.preventDefault();
+    //             this.selectViz(viz);
+    //         });
+    //     });
+    // }
 
-    /**
-     * Set up visualisation type listener
-     */
-    private setupVizTypeListener() {
-        this.vizOptions.forEach((viz) => {
-            viz.addEventListener("click", (e) => {
-                e.preventDefault();
-                this.selectViz(viz);
-            });
-        });
-    }
+    // private selectViz(vizOption: HTMLAnchorElement) {
+    //     if (!vizOption.classList.contains("selected")) {
+    //         let prevViz = [...this.vizOptions].filter((viz) =>
+    //             viz.classList.contains("selected")
+    //         )[0];
+    //         prevViz.classList.toggle("selected");
+    //         vizOption.classList.toggle("selected");
+    //         //update visualization
+    //         this.updateViz(parseInt(vizOption.getAttribute("value")));
+    //     }
+    // }
 
-    private selectViz(vizOption: HTMLAnchorElement) {
-        if (!vizOption.classList.contains("selected")) {
-            let prevViz = [...this.vizOptions].filter((viz) =>
-                viz.classList.contains("selected")
-            )[0];
-            prevViz.classList.toggle("selected");
-            vizOption.classList.toggle("selected");
-            //update visualization
-            this.updateViz(parseInt(vizOption.getAttribute("value")));
-        }
-    }
+    // private updateViz(vizType: Number) {
+    //     switch (vizType) {
+    //         case 0:
+    //             //display dendogram
+    //             console.log("dendogram");
+    //             this.displayViz("dendogram");
+    //             break;
+    //         case 1:
+    //             //display bubble
+    //             console.log("bubble");
+    //             this.displayViz("bubble");
+    //             break;
+    //         default:
+    //             //display dendogram
+    //             console.log("dendogram");
+    //             this.displayViz("dendogram");
+    //     }
+    // }
 
-    private updateViz(vizType: Number) {
-        switch (vizType) {
-            case 0:
-                //display dendogram
-                console.log("dendogram");
-                this.displayViz("dendogram");
-                break;
-            case 1:
-                //display bubble
-                console.log("bubble");
-                this.displayViz("bubble");
-                break;
-            default:
-                //display dendogram
-                console.log("dendogram");
-                this.displayViz("dendogram");
-        }
-    }
+    // private displayViz(vizType: String) {
+    //     if ((vizType = "dendogram")) {
+    //         this.graph.selectAll("*").remove();
+    //         this.dendogram.draw(this.root);
+    //     }
+    //     if ((vizType = "bubble")) {
+    //         this.graph.selectAll("*").remove();
+    //         this.bubblegraph.draw(this.root);
+    //     }
+    // }
 
     /**
      * Retrieve JSON data

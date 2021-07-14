@@ -1,0 +1,622 @@
+// import * as d3 from "d3";
+// import {
+//     ClusterGraph,
+//     HierarchyDatum,
+//     PositionedHierarchyNode,
+// } from "./graphs";
+
+// export class BubbleGraph extends ClusterGraph {
+//     private tree: d3.ClusterLayout<unknown> = d3.cluster();
+//     private flatRoot: d3.HierarchyNode<HierarchyDatum> = undefined;
+
+//     addOptions() {}
+
+//     draw(root: d3.HierarchyNode<HierarchyDatum>) {
+//         this.clear();
+//         // Create cluster tree
+//         this.tree = d3.cluster().size(this.size);
+//         this.tree(root);
+//         // this.createLinks(root);
+//         this.createNodes(root);
+//         this.readParams(root);
+//     }
+
+//     /**
+//      * Create the canvas nodes
+//      */
+//     private createNodes(root: d3.HierarchyNode<HierarchyDatum>) {
+//         let nodeHoverTimer: NodeJS.Timeout;
+//         let color = d3.scaleLinear().domain([0, 10]).range([152, 228]);
+//         // console.log(root)
+//         this.graph.append("g").classed("nodes", true);
+//         d3.select("svg g.nodes")
+//             .selectAll("circle.node")
+//             .data(root.descendants())
+//             .enter()
+//             .append("circle")
+//             .classed("node", true)
+//             .attr("fill", (d) =>
+//                 d.children ? "hsl(" + color(d.depth) + ",50%,50%)" : "white"
+//             )
+//             .attr("pointer-events", (d) => (!d.children ? "none" : null))
+//             .on("mouseover", (n) => {
+//                 d3.select(d3.event.target).style("stroke", "#000");
+//                 nodeHoverTimer = setTimeout(() => {
+//                     this.displayMetadata(n);
+//                     // this.colourFamily(n);
+//                 }, 500);
+//             })
+//             .on("mouseleave", () => {
+//                 d3.select(d3.event.target).style("stroke", null);
+//                 clearTimeout(nodeHoverTimer);
+//             })
+//             .on("click", (n) => {
+//                 this.displayMetadata(n);
+//                 this.updateZoom(n);
+//             });
+//     }
+
+//     redraw() {
+//         console.log("redraw dendrogram");
+//     }
+
+//     updateCompact() {
+//         console.log("compact update");
+//     }
+
+//     updateFlattening() {
+//         // Get flattening value
+//         const flatDistance = parseFloat(this.flatteningValueInput.value);
+
+//         // Create copy of root
+//         this.flatRoot = d3.hierarchy(this.root.data);
+//         this.flatRoot.descendants().map((d) => (d.data.merged_children = []));
+
+//         // Recursively merge leaves
+//         const leaves = this.flatRoot.leaves();
+//         for (const node of leaves) {
+//             this.mergeNode(node, flatDistance);
+//         }
+
+//         // Draw flattened tree
+//         this.clear();
+//         this.draw(this.flatRoot);
+//     }
+
+//     updateModel() {
+//         // Get flattening value
+//         this.root = d3.hierarchy(this.models[this.modelInput.value]);
+
+//         // Draw flattened tree
+//         this.clear();
+//         this.draw(this.root);
+//     }
+
+//     selectCluster() {
+//         const nodeName = this.nodeNameInput.value;
+//         if (nodeName) {
+//             for (const node of this.root.descendants()) {
+//                 if (node.data.name.toString() === nodeName) {
+//                     d3.select("svg g.nodes")
+//                         .selectAll("circle.node")
+//                         // @ts-ignore
+//                         .filter((n) => n.data.name.toString() === nodeName)
+//                         .dispatch("mouseover"); // to zoom in, change to 'click'
+//                     this.displayMetadata(node);
+//                     // this.updateZoom(node);  // to zoom in
+//                 }
+//             }
+//         }
+//         this.displayMetadata(this.root);
+//     }
+
+//     updateZoom(n: d3.HierarchyNode<HierarchyDatum>) {
+//         d3.event.stopPropagation();
+
+//         const parent = n.parent as PositionedHierarchyNode;
+//         let x0 = +Infinity;
+//         let x1 = -Infinity;
+//         let y0 = +Infinity;
+//         let y1 = -Infinity;
+
+//         function getPositions(node: PositionedHierarchyNode) {
+//             if (node.x < x0) {
+//                 x0 = node.x;
+//             }
+//             if (node.x > x1) {
+//                 x1 = node.x;
+//             }
+//             if (node.y < y0) {
+//                 y0 = node.y;
+//             }
+//             if (node.y > y1) {
+//                 y1 = node.y;
+//             }
+//             if ("children" in node && node.children !== null) {
+//                 for (const child of node.children) {
+//                     getPositions(child);
+//                 }
+//             }
+//         }
+
+//         getPositions(parent);
+
+//         const scale = Math.min(
+//             100,
+//             0.9 /
+//                 Math.max(
+//                     (x1 - x0) / this.svgBounds.width,
+//                     (y1 - y0) / this.svgBounds.height
+//                 )
+//         );
+//         const translation = [-(x0 + x1) / 2, -(y0 + y1) / 2];
+
+//         this.svg
+//             .transition()
+//             .duration(1000)
+//             .call(
+//                 // @ts-ignore
+//                 this.zoom.transform,
+//                 d3.zoomIdentity
+//                     .translate(
+//                         this.svgBounds.width / 2,
+//                         this.svgBounds.height / 2
+//                     )
+//                     .scale(scale)
+//                     .translate(translation[0], translation[1]),
+//                 // @ts-ignore
+//                 d3.mouse(this.svg.node())
+//             );
+//     }
+
+//     displayMetadata(rootNode: d3.HierarchyNode<HierarchyDatum>) {
+//         // Update url
+//         const url = new URL(window.location.href);
+//         url.searchParams.set("node", rootNode.data.name);
+//         window.history.pushState("selectNode", "", url.toString());
+
+//         // Get descendants
+//         const descendents: d3.HierarchyNode<HierarchyDatum>[] = [];
+
+//         function addDescendents(node: d3.HierarchyNode<HierarchyDatum>) {
+//             descendents.push(node);
+//             if ("children" in node && node.children !== null) {
+//                 for (const child of node.children) {
+//                     addDescendents(child);
+//                 }
+//             }
+//             if (
+//                 "merged_children" in node.data &&
+//                 node.data.merged_children !== null
+//             ) {
+//                 for (const child of node.data.merged_children) {
+//                     addDescendents(child);
+//                 }
+//             }
+//         }
+//         addDescendents(rootNode);
+
+//         // Get options
+//         const gallerySamplesElement = document.querySelector(
+//             "#gallerySamples"
+//         ) as HTMLSelectElement;
+//         const galleryMasksElement = document.querySelector(
+//             "#galleryMasks"
+//         ) as HTMLSelectElement;
+//         const showSample = gallerySamplesElement.selectedIndex == 0;
+//         const showMasks = galleryMasksElement.selectedIndex == 1;
+//         d3.select(gallerySamplesElement).on("change", () => {
+//             this.displayMetadata(rootNode);
+//         });
+//         d3.select(galleryMasksElement).on("change", () => {
+//             this.displayMetadata(rootNode);
+//         });
+
+//         // Add statistics
+//         this.nodeNameInput.value = rootNode.data.name;
+//         document.querySelector("#leafCount").innerHTML =
+//             descendents.length.toString();
+//         document.querySelector("#descendantDistance").innerHTML = d3
+//             .median(
+//                 descendents
+//                     .filter((n) => n.data.children.length > 0)
+//                     .map((n) => n.data.distance)
+//             )
+//             .toString();
+
+//         // Add gallery
+//         const imageList: string[] = [];
+//         const imageListLength = 20;
+//         // const hashTags: Set<string> = new Set();
+//         // const hashTags: string[] = [];
+//         const hashTags: { [key: string]: any } = {};
+//         //display all keys
+//         // var metaData: {[key: string]: any} = {};
+
+//         // function findMetadataKeys (datum: HierarchyDatum) {
+//         //     if (datum.children && !datum.children[0].children){
+//         //         console.log(datum.children[0].metadata.node)
+//         //         return datum.children[0].metadata.node;
+//         //     }
+//         //     findMetadataKeys(datum.children[0])
+//         // }
+//         // const keys = findMetadataKeys(rootNode.data)
+//         // console.log(keys)
+//         // // metaData = findMetadataKeys(rootNode.data);
+//         // // console.log(metaData)
+
+//         const findMedia = (datum: HierarchyDatum) => {
+//             if (showMasks) {
+//                 if (datum.metadata._maskFile) {
+//                     imageList.push(datum.metadata._maskFile);
+//                 }
+//             } else {
+//                 if (datum.metadata._mediaPath) {
+//                     // imageList.push(datum.metadata._image);
+//                     imageList.push(datum.metadata._mediaPath[0]);
+//                 }
+//                 if (datum.metadata.node) {
+//                     //for other metadata
+//                     if (datum.metadata.node.all_hashtags) {
+//                         datum.metadata.node.all_hashtags
+//                             .split(",")
+//                             .forEach((item: string) => {
+//                                 if (item == "''") {
+//                                     return;
+//                                 }
+//                                 item = item.trim().slice(1, -1);
+//                                 var path: String = datum.metadata._mediaPath[0];
+//                                 path = path.split("/").pop().split(".")[0];
+//                                 if (item in hashTags) {
+//                                     hashTags[item]["counter"] += 1;
+//                                     hashTags[item]["origin"] = hashTags[item][
+//                                         "origin"
+//                                     ].concat([path]);
+//                                 } else {
+//                                     hashTags[item] = {};
+//                                     hashTags[item]["counter"] = 1;
+//                                     hashTags[item]["origin"] = [path];
+//                                 }
+//                             });
+//                     }
+//                 }
+//             }
+//             if (imageList.length < imageListLength || !showSample) {
+//                 for (const child of datum.children) {
+//                     findMedia(child);
+//                 }
+//                 if ("merged_children" in datum) {
+//                     for (const child of datum.merged_children) {
+//                         findMedia(child.data);
+//                     }
+//                 }
+//             }
+//         };
+//         findMedia(rootNode.data);
+//         // // combine hastag key and value
+//         // for (var key in hashTags) {
+//         //     // check if the property/key is defined in the object itself, not in parent
+//         //     console.log(key, hashTags[key]);
+//         // }
+//         const hashtags = d3.select("#hashTags");
+//         hashtags.selectAll("div").remove();
+//         hashtags
+//             .selectAll("div")
+//             .data(Object.keys(hashTags))
+//             // .data(Array.from(hashTags))
+//             .enter()
+//             .append("div")
+//             .classed("hashtag", true)
+//             .text((d) => {
+//                 return d + " " + hashTags[d]["counter"];
+//             })
+//             .on("mouseover", (d) => {
+//                 hoverTimeout = setTimeout(() => {
+//                     const highlight = hashTags[d]["origin"];
+//                     highlight.forEach((e: String) => {
+//                         d3.select("#" + e).style("border-color", "yellow");
+//                     });
+//                 }, 100);
+//             })
+//             .on("mouseleave", (d) => {
+//                 clearTimeout(hoverTimeout);
+//                 const highlight = hashTags[d]["origin"];
+//                 highlight.forEach((e: String) => {
+//                     d3.select("#" + e).style("border-color", "#2e2e2e");
+//                 });
+//             });
+//         const imageGallery = d3.select("#imageGallery");
+//         let hoverTimeout: NodeJS.Timeout;
+//         imageGallery.selectAll("div").remove();
+//         imageGallery
+//             .selectAll("div")
+//             .data(imageList)
+//             .enter()
+//             .append("div")
+//             .on("mouseover", (d) => {
+//                 hoverTimeout = setTimeout(() => {
+//                     d3.select("#imagePopup")
+//                         .style("display", "block")
+//                         .style(
+//                             "background-image",
+//                             `url(${d.replace("\\", "\\\\")})`
+//                         );
+//                 }, 500);
+//             })
+//             .on("mouseleave", () => {
+//                 clearTimeout(hoverTimeout);
+//                 d3.select("#imagePopup").style("display", "none");
+//             })
+//             .append("img")
+//             .attr("src", (d) => {
+//                 return d;
+//             })
+//             .attr("id", (d) => {
+//                 return d.split("/").pop().split(".")[0];
+//             })
+//             .attr("loading", "lazy");
+
+//         findMedia(rootNode.data);
+//         // Bind export
+//         d3.select("#exportButton").on("click", () => {
+//             console.log("exporting");
+//             const data = descendents
+//                 .filter((d) => Object.keys(d.data.metadata).length > 0)
+//                 .map((d) => d.data.metadata);
+
+//             const dlAnchorElem = document.getElementById(
+//                 "downloadAnchorElem"
+//             ) as HTMLLinkElement;
+//             dlAnchorElem.href = URL.createObjectURL(
+//                 new Blob([JSON.stringify(data)], {
+//                     type: "application/json",
+//                 })
+//             );
+//             dlAnchorElem.setAttribute("download", "clusters.json");
+//             dlAnchorElem.click();
+//         });
+
+//         // Add objects
+//         const objects: {
+//             [key: string]: { probabilities: number[]; count: number };
+//         } = {};
+//         for (const node of descendents) {
+//             if ("_objects" in node.data.metadata) {
+//                 for (const object in node.data.metadata._objects) {
+//                     if (object in objects) {
+//                         objects[object].count += 1;
+//                         objects[object].probabilities.push(
+//                             node.data.metadata._objects[object]
+//                         );
+//                     } else {
+//                         objects[object] = {
+//                             probabilities: [
+//                                 node.data.metadata._objects[object],
+//                             ],
+//                             count: 1,
+//                         };
+//                     }
+//                 }
+//             }
+//         }
+
+//         //TODO
+//         const objectTableData = d3.select("#objectsTable").select("tbody");
+//         objectTableData.selectAll("tr").remove();
+//         const objectTableRows = objectTableData
+//             .selectAll("tr")
+//             .data(
+//                 Object.entries(objects).sort((a, b) => b[1].count - a[1].count)
+//             )
+//             .enter()
+//             .append("tr");
+
+//         objectTableRows.append("td").html((d) => d[0]);
+
+//         objectTableRows.append("td").html((d) => d[1].count.toString());
+
+//         objectTableRows
+//             .append("td")
+//             .html((d) => d3.median(d[1].probabilities).toString());
+//     }
+
+//     runColorGraph() {
+//         const attributeName = this.colorNodeInput.value.split(",")[0];
+//         const colorDimension = parseInt(
+//             this.colorNodeInput.value.split(",")[1]
+//         );
+//         const colors = this.colours(colorDimension);
+//         const colorMap: { [key: string]: number } = {};
+//         const nodeCategories: { [key: string]: { [key: string]: any } } = {};
+//         // d3.select("svg g.nodes")
+//         //     .selectAll("circle.node")
+//         //     // @ts-ignore
+//         //     .filter((n) => n.data.name.toString() === nodeName)
+//         //     // .dispatch("mouseover"); // to zoom in, change to 'click'
+//         this.colorGraph(
+//             this.root.data,
+//             attributeName,
+//             nodeCategories,
+//             colors,
+//             colorMap
+//         );
+//         console.log(nodeCategories);
+//         console.log(colors);
+//         console.log(colorMap);
+//         let legendBox = document.querySelector("#colorCode");
+//         legendBox.innerHTML = "";
+//         for (const [key, value] of Object.entries(colorMap)) {
+//             let node: HTMLDivElement = document.createElement("div");
+//             let colorBox = document.createElement("div");
+//             colorBox.id = "colorBox";
+//             colorBox.style.backgroundColor = "hsl(" + value + ",100%,50%)";
+//             let keyText = document.createElement("p");
+//             keyText.innerHTML = key;
+//             node.appendChild(colorBox);
+//             node.appendChild(keyText);
+//             legendBox.appendChild(node);
+//         }
+//         d3.select("svg g.nodes")
+//             .selectAll("circle.node")
+//             .data(this.root.descendants())
+//             .style("fill", (n) => {
+//                 if (n.data.metadata.color) {
+//                     return n.data.metadata.color;
+//                 }
+//             });
+//         // this.updateZoom(node);  // to zoom in
+//     }
+
+//     colorGraph(
+//         datum: HierarchyDatum,
+//         key_attr: string,
+//         nodeCategories: { [key: string]: { [key: string]: any } },
+//         colors: number[],
+//         colorMap: { [key: string]: number }
+//     ) {
+//         // update graph color based on an attribute
+//         let categories: { [key: string]: any } = { total: 0 };
+//         // leaf nodes
+//         if (datum.metadata.node) {
+//             if (datum.metadata.node[key_attr] != null) {
+//                 String(datum.metadata.node[key_attr])
+//                     .split(",")
+//                     .forEach((item: string) => {
+//                         // claim a color
+//                         if (!(item in colorMap)) {
+//                             colorMap[item] = colors.pop();
+//                         }
+//                         if (item in categories) {
+//                             categories[item] += 1;
+//                         } else {
+//                             categories[item] = 1;
+//                         }
+//                         categories["total"] += 1;
+//                     });
+//             }
+//         }
+//         // parent
+//         else {
+//             // left child
+//             const leftChild: HierarchyDatum = datum.children[0];
+//             if (!nodeCategories[leftChild.name]) {
+//                 this.colorGraph(
+//                     leftChild,
+//                     key_attr,
+//                     nodeCategories,
+//                     colors,
+//                     colorMap
+//                 );
+//             }
+//             const leftCategories = nodeCategories[leftChild.name];
+//             for (const [key, value] of Object.entries(leftCategories)) {
+//                 if (key in categories) {
+//                     categories[key] += value;
+//                 } else {
+//                     categories[key] = value;
+//                 }
+//                 // categories['total'] += value;
+//             }
+//             const rightChild: HierarchyDatum = datum.children[1];
+//             if (!nodeCategories[rightChild.name]) {
+//                 this.colorGraph(
+//                     rightChild,
+//                     key_attr,
+//                     nodeCategories,
+//                     colors,
+//                     colorMap
+//                 );
+//             }
+//             const rightCategories = nodeCategories[rightChild.name];
+//             for (const [key, value] of Object.entries(rightCategories)) {
+//                 if (key in categories) {
+//                     categories[key] += value;
+//                 } else {
+//                     categories[key] = value;
+//                 }
+//                 // categories['total'] += value;
+//             }
+//             // if ("merged_children" in datum) {
+//             //     for (const child of datum.merged_children) {
+//             //         this.colorGraph(child.data, key_attr, categories);
+//             //     }
+//             // }
+//         }
+//         nodeCategories[datum.name] = categories;
+//         datum.metadata.color = this.getColour(colorMap, categories);
+//         // console.log(datum.name+" "+this.getColour(colorMap, categories))
+//     }
+
+//     private colourFamily(familyRoot: d3.HierarchyNode<HierarchyDatum>) {
+//         function nodeColour(
+//             node: d3.HierarchyNode<HierarchyDatum>,
+//             family: boolean
+//         ) {
+//             let foundFamilyRoot: boolean = false;
+//             if (!family) {
+//                 if (node === familyRoot) {
+//                     foundFamilyRoot = true;
+//                     family = true;
+//                 } else {
+//                     family = false;
+//                 }
+//             }
+//             if (node.children) {
+//                 for (const child of node.children) {
+//                     nodeColour(child, family);
+//                 }
+//             }
+//             node.data.familyRoot = foundFamilyRoot;
+//             node.data.family = family;
+//         }
+//         const root = this.flatRoot ? this.flatRoot : this.root;
+//         nodeColour(root, false);
+
+//         // const colors = this.colours(3);
+
+//         d3.select("svg g.nodes")
+//             .selectAll("circle.node")
+//             .data(root.descendants())
+//             .style("fill", (n) => {
+//                 if (n.data.metadata.color) {
+//                     return n.data.metadata.color;
+//                 } else if (n.data.familyRoot) {
+//                     return "#ff624a";
+//                 } else if (n.data.family) {
+//                     return "#fff53e";
+//                 } else {
+//                     return "rgba(255,245,62,0.1)";
+//                 }
+//             });
+//         d3.select("svg g.links")
+//             .selectAll("line.link")
+//             .data(root.links())
+//             .style("stroke", (n) => {
+//                 if (n.source.data.familyRoot) {
+//                     return "#ff624a";
+//                 } else if (n.source.data.family) {
+//                     return "#ccc";
+//                 } else {
+//                     return "rgba(204,204,204,0.11)";
+//                 }
+//             });
+//     }
+
+//     private readParams(root: d3.HierarchyNode<HierarchyDatum>) {
+//         const url = new URL(window.location.href);
+//         const nodeName = url.searchParams.get("node");
+//         if (nodeName) {
+//             for (const node of root.descendants()) {
+//                 if (node.data.name.toString() === nodeName) {
+//                     d3.select("svg g.nodes")
+//                         .selectAll("circle.node")
+//                         // @ts-ignore
+//                         .filter((n) => n.data.name.toString() === nodeName)
+//                         .dispatch("mouseover");
+//                     this.displayMetadata(node);
+//                 }
+//             }
+//         }
+//         this.displayMetadata(root);
+//     }
+// }

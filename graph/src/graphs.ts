@@ -1,4 +1,5 @@
 import * as d3 from "d3";
+import { HierarchyNode } from "d3";
 
 export interface HierarchyDatum {
     name: string;
@@ -21,6 +22,13 @@ export interface PositionedHierarchyNode
     y: number;
 }
 
+export interface PositionedHierarchyCircularNode
+    extends d3.HierarchyCircularNode<HierarchyDatum> {
+    x: number;
+    y: number;
+    r: number;
+}
+
 export abstract class ClusterGraph {
     protected root: d3.HierarchyNode<HierarchyDatum>;
     protected graph: d3.Selection<SVGGElement, unknown, HTMLElement, any>;
@@ -30,6 +38,9 @@ export abstract class ClusterGraph {
     protected nodeNameInput: HTMLInputElement;
     protected colorNodeInput: HTMLInputElement;
     protected size: [number, number];
+
+    protected vizOptions: NodeListOf<HTMLAnchorElement> =
+        document.querySelectorAll(".viz-nav a");
 
     protected nodeSize = 4;
     protected lineWidth = 1;
@@ -72,6 +83,14 @@ export abstract class ClusterGraph {
         // Update graph when model changes
         modelInput.addEventListener("change", () => {
             this.eventDelay(this.updateModel.bind(this));
+        });
+
+        //update visualization when visualization option changes
+        this.vizOptions.forEach((viz) => {
+            viz.addEventListener("click", (e) => {
+                e.preventDefault();
+                this.eventDelay(this.selectViz.bind(this, viz));
+            });
         });
 
         this.nodeNameInput = document.querySelector(
@@ -149,6 +168,11 @@ export abstract class ClusterGraph {
     abstract updateModel(): void;
 
     /**
+     * Update the graph based on the viz mode
+     */
+    abstract selectViz(vizOption: HTMLAnchorElement): void;
+
+    /**
      * Update the graph based on the top node number of a cluster
      */
     abstract selectCluster(): void;
@@ -224,21 +248,24 @@ export abstract class ClusterGraph {
     /**
      * Delay events during input
      */
-    private eventDelay(callback: () => void) {
+    private eventDelay(callback: (arg?: any) => void, arg: any = null) {
         clearTimeout(this.updateTimeout);
         this.updateTimeout = window.setTimeout(() => {
-            callback();
+            if (arg) callback();
+            else callback(arg);
         }, 500);
     }
 }
 
 export class Dendrogram extends ClusterGraph {
     private tree: d3.ClusterLayout<unknown> = d3.cluster();
+    private pack: d3.PackLayout<unknown> = d3.pack();
     private flatRoot: d3.HierarchyNode<HierarchyDatum> = undefined;
 
     addOptions() {}
 
     draw(root: d3.HierarchyNode<HierarchyDatum>) {
+        this.clear();
         // Create cluster tree
         this.tree = d3.cluster().size(this.size);
         this.tree(root);
@@ -333,6 +360,90 @@ export class Dendrogram extends ClusterGraph {
         // Draw flattened tree
         this.clear();
         this.draw(this.root);
+    }
+
+    selectViz(vizOption: HTMLAnchorElement) {
+        if (!vizOption.classList.contains("selected")) {
+            let prevViz = [...this.vizOptions].filter((viz) =>
+                viz.classList.contains("selected")
+            )[0];
+            prevViz.classList.toggle("selected");
+            vizOption.classList.toggle("selected");
+            //update visualization
+            this.updateViz(vizOption.getAttribute("value"));
+        }
+    }
+
+    updateViz(vizType: String) {
+        if (vizType == "dendogram") {
+            console.log("dendogram");
+            this.draw(this.root);
+        }
+        if (vizType == "bubble") {
+            console.log("bubble");
+            this.drawbubble();
+        }
+    }
+
+    drawbubble() {
+        this.clear();
+        //create pack
+        this.pack = d3.pack().size(this.size).padding(3);
+        this.pack(
+            this.root
+                .sum((d) => (d.children ? d.children.length + 1 : 1))
+                // .sort((a, b) => {
+                //     let alength, blength;
+                //     alength = alength ? a.children.length + 1 : 1;
+                //     blength = blength ? b.children.length + 1 : 1;
+                //     return blength - alength;
+                // })
+                .sum((d) => d.distance || 1)
+                .sort((a, b) => b.data.distance - a.data.distance)
+        );
+        // .sort(
+        //     (
+        //         a: d3.HierarchyCircularNode<HierarchyDatum>,
+        //         b: d3.HierarchyCircularNode<HierarchyDatum>
+        //     ) => b.children.length - a.children.length
+        // );
+
+        let nodeHoverTimer: NodeJS.Timeout;
+        let color = d3.scaleLinear().domain([0, 10]).range([152, 228]);
+        // console.log(root)
+        this.graph.append("g").classed("nodes", true);
+        d3.select("svg g.nodes")
+            .selectAll("circle.cnode")
+            .data(this.root.descendants())
+            .enter()
+            .append("circle")
+            .classed("cnode", true)
+            // .style(
+            //     "background-image",
+            //     (d) => `url('${d.data.metadata._mediaPath}')`
+            // )
+            .attr("cx", (d: PositionedHierarchyCircularNode) => d.x)
+            .attr("cy", (d: PositionedHierarchyCircularNode) => d.y)
+            .attr("r", (d: PositionedHierarchyCircularNode) => d.r)
+            .attr("fill", (d) =>
+                d.children ? "hsl(" + color(d.depth) + ",50%,50%)" : "white"
+            )
+            .attr("pointer-events", (d) => (!d.children ? "none" : null))
+            .on("mouseover", (n) => {
+                d3.select(d3.event.target).style("stroke", "#000");
+                nodeHoverTimer = setTimeout(() => {
+                    this.displayMetadata(n);
+                    // this.colourFamily(n);
+                }, 500);
+            })
+            .on("mouseleave", () => {
+                d3.select(d3.event.target).style("stroke", null);
+                clearTimeout(nodeHoverTimer);
+            })
+            .on("click", (n) => {
+                this.displayMetadata(n);
+                // this.updateZoom(n);
+            });
     }
 
     selectCluster() {
@@ -862,62 +973,4 @@ export class Dendrogram extends ClusterGraph {
         }
         this.displayMetadata(root);
     }
-}
-
-export class BubbleGraph extends ClusterGraph {
-    /**
-     * Add graph-specific options
-     */
-    addOptions() {}
-
-    /**
-     * Draw the graph
-     */
-    draw(root: d3.HierarchyNode<HierarchyDatum>) {
-        // Create cluster tree
-        // this.tree = d3.cluster().size(this.size);
-        // this.tree(root);
-        // this.createLinks(root);
-        // this.createNodes(root);
-        // this.readParams(root);
-        this.clear();
-        this.draw(this.root);
-    }
-
-    /**
-     * Re-draw the graph using transitions
-     */
-    redraw() {}
-
-    /**
-     * Update the graph based on the flattening distance
-     */
-    updateFlattening() {}
-
-    /**
-     * Update the graph based on the model
-     */
-    updateModel() {
-        // Get flattening value
-        this.root = d3.hierarchy(this.models[this.modelInput.value]);
-
-        // Draw flattened tree
-        this.clear();
-        this.draw(this.root);
-    }
-
-    /**
-     * Update the graph based on the top node number of a cluster
-     */
-    selectCluster() {}
-
-    /**
-     * run colorGraph
-     */
-    runColorGraph() {}
-
-    /**
-     * Update the graph based on whether to compact clusters
-     */
-    updateCompact() {}
 }
