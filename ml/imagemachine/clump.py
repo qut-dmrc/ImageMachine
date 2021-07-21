@@ -1,5 +1,6 @@
 import scipy.spatial.distance
 import scipy.cluster.hierarchy
+import scipy.cluster.vq as vq
 from neo4j import GraphDatabase
 
 # MATCH (n {name:"root"}) -[r:HAS_CHILD*1..4 {model:'vgg16'}]- (a) RETURN n,a to filter path
@@ -78,3 +79,21 @@ def clump(predictions, metadata, model, method='average', metric='euclidean'):
     descend_cluster(root_node, tree, metadata, driver, model)
     # driver.close()
     return tree
+
+def kmeans2(predictions, metadata):
+    codebook, label = vq.kmeans2(predictions,10)
+    data = {
+        'name': 'root',
+        'children': []
+    }
+    clusters = []
+    # initializer bucket
+    for i in range(10):
+        clusters.append({'name':i,'children':[]})   
+    for m in label:
+        cluster = clusters[label[m]]
+        cluster['children'].append(metadata[m])
+    # print(clusters)
+    # print(label)
+    data['children'] = clusters
+    return data

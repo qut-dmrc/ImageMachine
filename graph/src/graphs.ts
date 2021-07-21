@@ -409,7 +409,7 @@ export class Dendrogram extends ClusterGraph {
         // );
 
         let nodeHoverTimer: NodeJS.Timeout;
-        let color = d3.scaleLinear().domain([0, 10]).range([152, 228]);
+        let color = d3.scaleLinear().domain([0, 2]).range([0, 100]);
         // console.log(root)
         this.graph.append("g").classed("nodes", true);
         d3.select("svg g.nodes")
@@ -418,15 +418,17 @@ export class Dendrogram extends ClusterGraph {
             .enter()
             .append("circle")
             .classed("cnode", true)
+            // .style("fill", (d)=> `url(})`);
             // .style(
-            //     "background-image",
-            //     (d) => `url('${d.data.metadata._mediaPath}')`
+            //     "fill",
+            //     // (d) => `url('${d.data.metadata._mediaPath}')`
+            //     `url('downloads\\\\user\\\\jane.txy\\\\B-CGDsUjifK.jpg')`
             // )
             .attr("cx", (d: PositionedHierarchyCircularNode) => d.x)
             .attr("cy", (d: PositionedHierarchyCircularNode) => d.y)
             .attr("r", (d: PositionedHierarchyCircularNode) => d.r)
             .attr("fill", (d) =>
-                d.children ? "hsl(" + color(d.depth) + ",50%,50%)" : "white"
+                d.children ? "hsl(220,50%," + color(d.depth) + "%)" : "white"
             )
             .attr("pointer-events", (d) => (!d.children ? "none" : null))
             .on("mouseover", (n) => {
@@ -691,10 +693,7 @@ export class Dendrogram extends ClusterGraph {
                 hoverTimeout = setTimeout(() => {
                     d3.select("#imagePopup")
                         .style("display", "block")
-                        .style(
-                            "background-image",
-                            `url(${d.replace("\\", "\\\\")})`
-                        );
+                        .style("fill", `url(${d.replace("\\", "\\\\")})`);
                 }, 500);
             })
             .on("mouseleave", () => {

@@ -14,6 +14,8 @@ import logging
 import datetime
 import sys
 
+from scipy.cluster.vq import kmeans2
+
 from .predict import *
 from .clump import *
 from .tools import *
@@ -275,14 +277,18 @@ class ImageMachine:
             metadata_out = self.get_metadata(metadata_out, datasize)
         start_time = time.time()
         logging.info('{}:Clustering images'.format(datetime.datetime.now()))
-        tree_vgg16 = clump(vgg16_predictions, metadata_out, "vgg16")
-        tree_vgg19 = clump(vgg19_predictions, metadata_out, "vgg19")
-        exec_time = time.time()-start_time
         clusterData = {}
-        clusterData['tree_vgg16'] = tree_vgg16
-        clusterData['tree_vgg19'] = tree_vgg19
-        writeJSONToFile("../graph/static/clusters_{}.json".format(datasize), clusterData, 'w')
-        logging.info('{}:Clusters saved to static folder. Clustering time: {}'.format(datetime.datetime.now(), exec_time))
+        data_kmeans2 = kmeans2(vgg16_predictions, metadata_out)
+        clusterData['tree_vgg16'] = data_kmeans2
+        writeJSONToFile("../graph/static/clusters_kmeans.json", clusterData, 'w')
+        # tree_vgg16 = clump(vgg16_predictions, metadata_out, "vgg16")
+        # tree_vgg19 = clump(vgg19_predictions, metadata_out, "vgg19")
+        # exec_time = time.time()-start_time
+        # clusterData = {}
+        # clusterData['tree_vgg16'] = tree_vgg16
+        # clusterData['tree_vgg19'] = tree_vgg19
+        # writeJSONToFile("../graph/static/clusters_{}.json".format(datasize), clusterData, 'w')
+        # logging.info('{}:Clusters saved to static folder. Clustering time: {}'.format(datetime.datetime.now(), exec_time))
 
     def predictImageInZip(self, _zipfolder, apath, metadata, node, vgg16_predictions, vgg19_predictions, isNode):
         with _zipfolder.open(apath,'rb') as image:
