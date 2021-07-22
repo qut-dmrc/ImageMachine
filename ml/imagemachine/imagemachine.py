@@ -171,9 +171,12 @@ class ImageMachine:
             new_metadata = []
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 for node in metadata:
-                    apath = node['_mediaPath'][0].replace('\\','/')
-                    apath = apath.split('/')[-1] # filename only
+                    # apath = node['_mediaPath'][0].replace('\\','/')
+                    # apath = apath.split('/')[-1] # filename only
+                    apath = node['shortcode_media']['shortcode']
+                    # print(os.path.join(source_file,apath))
                     if os.path.exists(os.path.join(source_file,apath)):
+                        print('path exists')
                         # new_metadata.append(node)
                         # executor.submit(self.predictImage, source_file, apath, vgg16_predictions, vgg19_predictions)
                         executor.submit(self.predictImage, source_file, apath, new_metadata, node, vgg16_predictions, vgg19_predictions, True)
