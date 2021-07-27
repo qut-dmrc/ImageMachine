@@ -14,6 +14,7 @@ export interface HierarchyDatum {
     familyRoot: boolean;
     children?: Array<HierarchyDatum>;
     merged_children?: d3.HierarchyNode<HierarchyDatum>[];
+    _mediaPath?: string;
 }
 
 export interface PositionedHierarchyNode
@@ -412,10 +413,42 @@ export class Dendrogram extends ClusterGraph {
         let color = d3.scaleLinear().domain([0, 2]).range([0, 100]);
         // console.log(root)
         this.graph.append("g").classed("nodes", true);
-        d3.select("svg g.nodes")
-            .selectAll("circle.cnode")
+        let circleimgs = d3
+            .select("svg g.nodes")
+            .selectAll("g.circleimg")
             .data(this.root.descendants())
             .enter()
+            .append("g")
+            .classed("circleimg", true);
+
+        // console.log(this.root.descendants());
+
+        circleimgs
+            .append("defs")
+            .append("pattern")
+            .attr("id", (d) => {
+                // console.log(d);
+                return d.data?._mediaPath ? d.data._mediaPath : "";
+            })
+            .attr("patternUnits", "userSpaceOnUse")
+            .attr("width", 1)
+            .attr("height", 1)
+            .attr("patternContentUnits", "objectBoundingBox")
+            .append("svg:image")
+            .attr(
+                "xlink:xlink:href",
+                "downloads\\\\user\\\\jane.txy\\\\B-CGDsUjifK.jpg"
+            ) // "icon" is my image url. It comes from json too. The double xlink:xlink is a necessary hack (first "xlink:" is lost...).
+            .attr("height", 1)
+            .attr("width", 1)
+            .attr("preserveAspectRatio", "xMinYMin slice");
+
+        // d3.select("svg g.nodes")
+        //     .selectAll("circle.cnode")
+        //     .data(this.root.descendants())
+        //     .enter()
+
+        circleimgs
             .append("circle")
             .classed("cnode", true)
             // .style("fill", (d)=> `url(})`);
@@ -428,7 +461,10 @@ export class Dendrogram extends ClusterGraph {
             .attr("cy", (d: PositionedHierarchyCircularNode) => d.y)
             .attr("r", (d: PositionedHierarchyCircularNode) => d.r)
             .attr("fill", (d) =>
-                d.children ? "hsl(220,50%," + color(d.depth) + "%)" : "white"
+                d.data?.children?.length > 0
+                    ? // ? "hsl(220,50%," + color(d.depth) + "%)"
+                      "None"
+                    : "url(#" + d.data._mediaPath + ")"
             )
             .attr("pointer-events", (d) => (!d.children ? "none" : null))
             .on("mouseover", (n) => {
@@ -575,7 +611,7 @@ export class Dendrogram extends ClusterGraph {
         document.querySelector("#descendantDistance").innerHTML = d3
             .median(
                 descendents
-                    .filter((n) => n.data.children.length > 0)
+                    .filter((n) => n.data?.children.length > 0)
                     .map((n) => n.data.distance)
             )
             .toString();
