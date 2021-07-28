@@ -426,22 +426,18 @@ export class Dendrogram extends ClusterGraph {
         circleimgs
             .append("defs")
             .append("pattern")
-            .attr("id", (d) => {
-                // console.log(d);
-                return d.data?._mediaPath ? d.data._mediaPath : "";
+            .attr("id", (d, i) => {
+                return i;
             })
             .attr("patternUnits", "userSpaceOnUse")
-            .attr("width", 1)
-            .attr("height", 1)
-            .attr("patternContentUnits", "objectBoundingBox")
+            .attr("width", 48)
+            .attr("height", 48)
+            // .attr("patternContentUnits", "objectBoundingBox")
             .append("svg:image")
-            .attr(
-                "xlink:xlink:href",
-                "downloads\\\\user\\\\jane.txy\\\\B-CGDsUjifK.jpg"
-            ) // "icon" is my image url. It comes from json too. The double xlink:xlink is a necessary hack (first "xlink:" is lost...).
-            .attr("height", 1)
-            .attr("width", 1)
-            .attr("preserveAspectRatio", "xMinYMin slice");
+            .attr("xlink:href", (d) => d.data?._mediaPath) // "icon" is my image url. It comes from json too. The double xlink:xlink is a necessary hack (first "xlink:" is lost...).
+            .attr("height", 48)
+            .attr("width", 48)
+            .attr("preserveAspectRatio", "xMidYMid slice");
 
         // d3.select("svg g.nodes")
         //     .selectAll("circle.cnode")
@@ -460,12 +456,13 @@ export class Dendrogram extends ClusterGraph {
             .attr("cx", (d: PositionedHierarchyCircularNode) => d.x)
             .attr("cy", (d: PositionedHierarchyCircularNode) => d.y)
             .attr("r", (d: PositionedHierarchyCircularNode) => d.r)
-            .attr("fill", (d) =>
-                d.data?.children?.length > 0
-                    ? // ? "hsl(220,50%," + color(d.depth) + "%)"
-                      "None"
-                    : "url(#" + d.data._mediaPath + ")"
-            )
+            .attr("fill", (d, i) => {
+                if (d.data._mediaPath) {
+                    return "url(#" + i + ")";
+                } else {
+                    return "hsl(220,50%," + color(d.depth) + "%)";
+                }
+            })
             .attr("pointer-events", (d) => (!d.children ? "none" : null))
             .on("mouseover", (n) => {
                 d3.select(d3.event.target).style("stroke", "#000");
