@@ -139,7 +139,7 @@ class ClusterGraphContainer {
         const timer = setInterval(() => {
             popup.append("span").html(". ");
         }, 1000);
-        const response = await fetch("clusters.json");
+        const response = await fetch("clusters_dendogram.json");
         this.models = await response.json();
         var keys = Object.keys(this.models);
         //available models

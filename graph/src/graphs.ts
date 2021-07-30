@@ -32,6 +32,8 @@ export interface PositionedHierarchyCircularNode
 
 export abstract class ClusterGraph {
     protected root: d3.HierarchyNode<HierarchyDatum>;
+    protected dendogram: d3.HierarchyNode<HierarchyDatum>;
+    protected bubblegram: d3.HierarchyNode<HierarchyDatum>;
     protected graph: d3.Selection<SVGGElement, unknown, HTMLElement, any>;
     protected flatteningValueInput: HTMLInputElement;
     protected modelInput: HTMLSelectElement;
@@ -62,14 +64,15 @@ export abstract class ClusterGraph {
      * @param size: Dimensions of the graph
      */
     constructor(
-        root: d3.HierarchyNode<HierarchyDatum>,
+        dendogram: d3.HierarchyNode<HierarchyDatum>,
         graph: d3.Selection<SVGGElement, unknown, HTMLElement, any>,
         flatteningValueInput: HTMLInputElement,
         modelInput: HTMLSelectElement,
         models: { [name: string]: HierarchyDatum },
         size: [number, number]
     ) {
-        this.root = root;
+        this.dendogram = dendogram;
+        this.root = this.dendogram;
         this.graph = graph;
         this.flatteningValueInput = flatteningValueInput;
         this.modelInput = modelInput;
@@ -375,21 +378,40 @@ export class Dendrogram extends ClusterGraph {
         }
     }
 
-    updateViz(vizType: String) {
+    async updateViz(vizType: String) {
         if (vizType == "dendogram") {
             console.log("dendogram");
-            this.draw(this.root);
+            this.draw(this.dendogram);
         }
         if (vizType == "bubble") {
             console.log("bubble");
-            this.drawbubble();
+            if (this.bubblegram == null) {
+                await this.loadKmeansCluster();
+            }
+            this.root = this.bubblegram;
+            this.pack = d3.pack().size(this.size).padding(3);
+            this.drawbubble(this.root);
         }
     }
 
-    drawbubble() {
-        this.clear();
+    async loadKmeansCluster() {
         //create pack
-        this.pack = d3.pack().size(this.size).padding(3);
+        const popup = d3.select("#fetchPopup").style("display", "block");
+        const timer = setInterval(() => {
+            popup.append("span").html(". ");
+        }, 1000);
+        console.log("loading clusters_kmeans");
+        const response = await fetch("clusters_kmeans.json");
+        this.models = await response.json();
+        var keys = Object.keys(this.models);
+        //available models
+        this.bubblegram = d3.hierarchy(this.models[keys[0]]);
+        popup.style("display", "none");
+        clearTimeout(timer);
+    }
+
+    drawbubble(root: d3.HierarchyNode<HierarchyDatum>) {
+        this.clear();
         this.pack(
             this.root
                 .sum((d) => (d.children ? d.children.length + 1 : 1))
@@ -429,14 +451,14 @@ export class Dendrogram extends ClusterGraph {
             .attr("id", (d, i) => {
                 return i;
             })
-            .attr("patternUnits", "userSpaceOnUse")
-            .attr("width", 48)
-            .attr("height", 48)
-            // .attr("patternContentUnits", "objectBoundingBox")
+            // .attr("patternUnits", "userSpaceOnUse")
+            .attr("width", 1)
+            .attr("height", 1)
+            .attr("patternContentUnits", "objectBoundingBox")
             .append("svg:image")
             .attr("xlink:href", (d) => d.data?._mediaPath) // "icon" is my image url. It comes from json too. The double xlink:xlink is a necessary hack (first "xlink:" is lost...).
-            .attr("height", 48)
-            .attr("width", 48)
+            .attr("height", 1)
+            .attr("width", 1)
             .attr("preserveAspectRatio", "xMidYMid slice");
 
         // d3.select("svg g.nodes")
