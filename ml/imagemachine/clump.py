@@ -1,35 +1,35 @@
 import scipy.spatial.distance
 import scipy.cluster.hierarchy
-from neo4j import GraphDatabase
+# from neo4j import GraphDatabase
 
 # MATCH (n {name:"root"}) -[r:HAS_CHILD*1..4 {model:'vgg16'}]- (a) RETURN n,a to filter path
-def create_cluster_node(tx, name, distance, metadata, isLeaf):
-    if isLeaf:
-        query = ("CREATE (n:LEAF {name: $name, distance: $distance, metadata:$metadata}) RETURN ID(n)")
-        metadata = metadata['_mediaPath'][0]
-    else:
-        query = ("CREATE (n:Node {name: $name, distance: $distance, metadata:$metadata}) RETURN ID(n)")
-        metadata = None
-    result = tx.run(query, name = name, distance = distance, metadata = metadata)
-    _id = result.single()[0]
-    return _id
+# def create_cluster_node(tx, name, distance, metadata, isLeaf):
+#     if isLeaf:
+#         query = ("CREATE (n:LEAF {name: $name, distance: $distance, metadata:$metadata}) RETURN ID(n)")
+#         metadata = metadata['_mediaPath'][0]
+#     else:
+#         query = ("CREATE (n:Node {name: $name, distance: $distance, metadata:$metadata}) RETURN ID(n)")
+#         metadata = None
+#     result = tx.run(query, name = name, distance = distance, metadata = metadata)
+#     _id = result.single()[0]
+#     return _id
 
-def find_cluster_node(tx, name):
-    query = ("MATCH (n {name:$name}) RETURN ID(n)")
-    result = tx.run(query, name=name)
-    node = []
-    for record in result:
-        node.append(record[0])
-    return node
+# def find_cluster_node(tx, name):
+#     query = ("MATCH (n {name:$name}) RETURN ID(n)")
+#     result = tx.run(query, name=name)
+#     node = []
+#     for record in result:
+#         node.append(record[0])
+#     return node
 
-def add_child(tx, parent_id, child_id, model):
-    # create_cluster_node
-    query = (
-        "MATCH (parent:Node) WHERE ID(parent)=$parentID "
-        "MATCH (child) WHERE ID(child)=$childID "
-        "CREATE (parent)-[:HAS_CHILD {model:$model}]->(child)"
-        )
-    tx.run(query, parentID = parent_id, childID = child_id, model = model)
+# def add_child(tx, parent_id, child_id, model):
+#     # create_cluster_node
+#     query = (
+#         "MATCH (parent:Node) WHERE ID(parent)=$parentID "
+#         "MATCH (child) WHERE ID(child)=$childID "
+#         "CREATE (parent)-[:HAS_CHILD {model:$model}]->(child)"
+#         )
+#     tx.run(query, parentID = parent_id, childID = child_id, model = model)
 
 def descend_cluster(cluster_node, tree_node, metadata, driver, model):
     # with driver.session() as session:
