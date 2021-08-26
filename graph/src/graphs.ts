@@ -4,10 +4,10 @@ export interface HierarchyDatum {
     name: string;
     distance: number;
     metadata: {
-        [key: string]: any,
-        "_image": string,
-        "_maskFile"?: string,
-        "_objects"?: { [key: string]: number }
+        [key: string]: any;
+        _image: string;
+        _maskFile?: string;
+        _objects?: { [key: string]: number };
     };
     family: boolean;
     familyRoot: boolean;
@@ -15,9 +15,10 @@ export interface HierarchyDatum {
     merged_children?: d3.HierarchyNode<HierarchyDatum>[];
 }
 
-export interface PositionedHierarchyNode extends d3.HierarchyNode<HierarchyDatum> {
-    x: number,
-    y: number
+export interface PositionedHierarchyNode
+    extends d3.HierarchyNode<HierarchyDatum> {
+    x: number;
+    y: number;
 }
 
 abstract class ClusterGraph {
@@ -25,7 +26,7 @@ abstract class ClusterGraph {
     protected graph: d3.Selection<SVGGElement, unknown, HTMLElement, any>;
     protected flatteningValueInput: HTMLInputElement;
     protected modelInput: HTMLSelectElement;
-    protected models: {[name: string]: HierarchyDatum};
+    protected models: { [name: string]: HierarchyDatum };
     protected nodeNameInput: HTMLInputElement;
     protected colorNodeInput: HTMLInputElement;
     protected size: [number, number];
@@ -53,7 +54,7 @@ abstract class ClusterGraph {
         graph: d3.Selection<SVGGElement, unknown, HTMLElement, any>,
         flatteningValueInput: HTMLInputElement,
         modelInput: HTMLSelectElement,
-        models: {[name: string]: HierarchyDatum},
+        models: { [name: string]: HierarchyDatum },
         size: [number, number]
     ) {
         this.root = root;
@@ -73,42 +74,53 @@ abstract class ClusterGraph {
             this.eventDelay(this.updateModel.bind(this));
         });
 
-        this.nodeNameInput = document.querySelector("#nodeName") as HTMLInputElement;
-        this.nodeNameInput.addEventListener("keyup",(event) => {
-            if(event.key === "Enter")
+        this.nodeNameInput = document.querySelector(
+            "#nodeName"
+        ) as HTMLInputElement;
+        this.nodeNameInput.addEventListener("keyup", (event) => {
+            if (event.key === "Enter")
                 this.eventDelay(this.selectCluster.bind(this));
-        })
-        this.colorNodeInput = document.querySelector("#colorNode") as HTMLInputElement;
+        });
+        this.colorNodeInput = document.querySelector(
+            "#colorNode"
+        ) as HTMLInputElement;
         this.colorNodeInput.addEventListener("keyup", (event) => {
-            if(event.key === "Enter")
+            if (event.key === "Enter")
                 this.eventDelay(this.runColorGraph.bind(this));
-        })
+        });
         // Run first draw
         this.draw(this.root);
 
         // Add zooming
         this.svg = d3.select("svg");
-        this.svgBounds = (this.svg.node() as HTMLElement).getBoundingClientRect();
-        this.zoom = d3.zoom()
-            .extent([[0, 0], [this.svgBounds.width, this.svgBounds.height]])
+        this.svgBounds = (
+            this.svg.node() as HTMLElement
+        ).getBoundingClientRect();
+        this.zoom = d3
+            .zoom()
+            .extent([
+                [0, 0],
+                [this.svgBounds.width, this.svgBounds.height],
+            ])
             .scaleExtent([1, 100])
             .on("zoom", () => {
                 const currentTransform = d3.event.transform;
 
-                this.graph.selectAll("circle")
+                this.graph
+                    .selectAll("circle")
                     .attr("r", this.nodeSize / currentTransform.k);
 
-                this.graph.selectAll("line")
+                this.graph
+                    .selectAll("line")
                     .attr("stroke-width", this.lineWidth / currentTransform.k);
-                const {transform} = d3.event;
+                const { transform } = d3.event;
                 this.graph.attr("transform", transform);
                 this.graph.attr("stroke-width", 1 / transform.k);
             });
         this.svg.call(this.zoom);
-        d3.select("#zoomReset")
-            .on("click", () => {
-                this.svg.call(this.zoom.transform, d3.zoomIdentity.scale(1))
-            })
+        d3.select("#zoomReset").on("click", () => {
+            this.svg.call(this.zoom.transform, d3.zoomIdentity.scale(1));
+        });
     }
 
     /**
@@ -140,7 +152,7 @@ abstract class ClusterGraph {
      * Update the graph based on the top node number of a cluster
      */
     abstract selectCluster(): void;
-    
+
     /**
      * run colorGraph
      */
@@ -156,7 +168,10 @@ abstract class ClusterGraph {
      * @param node
      * @param distance
      */
-    protected mergeNode(node: d3.HierarchyNode<HierarchyDatum>, distance: number) {
+    protected mergeNode(
+        node: d3.HierarchyNode<HierarchyDatum>,
+        distance: number
+    ) {
         // Validate parent and distance
         const parent = node.parent;
         if (parent !== null && parent.parent !== null) {
@@ -181,27 +196,29 @@ abstract class ClusterGraph {
         const baseColour = 360 / n;
         for (let i = 0; i < n; i++) {
             // colours.push("hsl(" + (i * baseColour % 360) + ",100%,50%)");
-            colours.push((i * baseColour % 360));
+            colours.push((i * baseColour) % 360);
         }
         return colours;
     }
 
-    protected getColour(colorMap: {[key: string]: number}, categoryMap:{[key: string]: number}) {
+    protected getColour(
+        colorMap: { [key: string]: number },
+        categoryMap: { [key: string]: number }
+    ) {
         let finalColor = 0;
-        for (const [key,value] of Object.entries(categoryMap)) {
-            if (key == 'total')
-                continue;
-            finalColor += categoryMap[key]/categoryMap['total'] * colorMap[key] 
+        for (const [key, value] of Object.entries(categoryMap)) {
+            if (key == "total") continue;
+            finalColor +=
+                (categoryMap[key] / categoryMap["total"]) * colorMap[key];
         }
-        return ("hsl(" + finalColor + ",100%,50%)");
+        return "hsl(" + finalColor + ",100%,50%)";
     }
 
     /**
      * Clear the graph canvas
      */
     protected clear() {
-        this.graph.selectAll("*")
-            .remove()
+        this.graph.selectAll("*").remove();
     }
 
     /**
@@ -219,8 +236,7 @@ export class Dendrogram extends ClusterGraph {
     private tree: d3.ClusterLayout<unknown> = d3.cluster();
     private flatRoot: d3.HierarchyNode<HierarchyDatum> = undefined;
 
-    addOptions() {
-    }
+    addOptions() {}
 
     draw(root: d3.HierarchyNode<HierarchyDatum>) {
         // Create cluster tree
@@ -230,7 +246,7 @@ export class Dendrogram extends ClusterGraph {
         this.createLinks(root);
         this.createNodes(root);
 
-        this.readParams(root)
+        this.readParams(root);
     }
 
     /**
@@ -243,13 +259,13 @@ export class Dendrogram extends ClusterGraph {
         this.graph.append("g").classed("nodes", true);
         d3.select("svg g.nodes")
             .selectAll("circle.node")
-            .data(root.descendants())  
+            .data(root.descendants())
             .enter()
             .append("circle")
-            .classed('node', true)
-            .attr('cx', (d: PositionedHierarchyNode) => d.x)
-            .attr('cy', (d: PositionedHierarchyNode) => d.y)
-            .attr('r', this.nodeSize)
+            .classed("node", true)
+            .attr("cx", (d: PositionedHierarchyNode) => d.x)
+            .attr("cy", (d: PositionedHierarchyNode) => d.y)
+            .attr("r", this.nodeSize)
             .on("mouseover", (n) => {
                 nodeHoverTimer = setTimeout(() => {
                     this.displayMetadata(n);
@@ -270,17 +286,17 @@ export class Dendrogram extends ClusterGraph {
      */
     private createLinks(root: d3.HierarchyNode<HierarchyDatum>) {
         this.graph.append("g").classed("links", true);
-        d3.select('svg g.links')
-            .selectAll('line.link')
+        d3.select("svg g.links")
+            .selectAll("line.link")
             .data(root.links())
             .enter()
-            .append('line')
-            .classed('link', true)
-            .attr('x1', (d: any) => d.source.x)
-            .attr('y1', (d: any) => d.source.y)
-            .attr('x2', (d: any) => d.target.x)
-            .attr('y2', (d: any) => d.target.y)
-            .attr('stroke-width', this.lineWidth);
+            .append("line")
+            .classed("link", true)
+            .attr("x1", (d: any) => d.source.x)
+            .attr("y1", (d: any) => d.source.y)
+            .attr("x2", (d: any) => d.target.x)
+            .attr("y2", (d: any) => d.target.y)
+            .attr("stroke-width", this.lineWidth);
     }
 
     redraw() {
@@ -297,7 +313,7 @@ export class Dendrogram extends ClusterGraph {
 
         // Create copy of root
         this.flatRoot = d3.hierarchy(this.root.data);
-        this.flatRoot.descendants().map(d => d.data.merged_children = []);
+        this.flatRoot.descendants().map((d) => (d.data.merged_children = []));
 
         // Recursively merge leaves
         const leaves = this.flatRoot.leaves();
@@ -312,7 +328,7 @@ export class Dendrogram extends ClusterGraph {
 
     updateModel() {
         // Get flattening value
-        this.root = d3.hierarchy(this.models[this.modelInput.value])
+        this.root = d3.hierarchy(this.models[this.modelInput.value]);
 
         // Draw flattened tree
         this.clear();
@@ -320,7 +336,7 @@ export class Dendrogram extends ClusterGraph {
     }
 
     selectCluster() {
-        const nodeName = this.nodeNameInput.value
+        const nodeName = this.nodeNameInput.value;
         if (nodeName) {
             for (const node of this.root.descendants()) {
                 if (node.data.name.toString() === nodeName) {
@@ -368,21 +384,32 @@ export class Dendrogram extends ClusterGraph {
 
         getPositions(parent);
 
-        const scale = Math.min(100, 0.9 / Math.max((x1 - x0) / this.svgBounds.width, (y1 - y0) / this.svgBounds.height));
+        const scale = Math.min(
+            100,
+            0.9 /
+                Math.max(
+                    (x1 - x0) / this.svgBounds.width,
+                    (y1 - y0) / this.svgBounds.height
+                )
+        );
         const translation = [-(x0 + x1) / 2, -(y0 + y1) / 2];
 
-        this.svg.transition()
+        this.svg
+            .transition()
             .duration(1000)
             .call(
                 // @ts-ignore
                 this.zoom.transform,
                 d3.zoomIdentity
-                    .translate(this.svgBounds.width / 2, this.svgBounds.height / 2)
+                    .translate(
+                        this.svgBounds.width / 2,
+                        this.svgBounds.height / 2
+                    )
                     .scale(scale)
                     .translate(translation[0], translation[1]),
                 // @ts-ignore
                 d3.mouse(this.svg.node())
-            )
+            );
     }
 
     displayMetadata(rootNode: d3.HierarchyNode<HierarchyDatum>) {
@@ -401,44 +428,53 @@ export class Dendrogram extends ClusterGraph {
                     addDescendents(child);
                 }
             }
-            if ("merged_children" in node.data && node.data.merged_children !== null) {
+            if (
+                "merged_children" in node.data &&
+                node.data.merged_children !== null
+            ) {
                 for (const child of node.data.merged_children) {
                     addDescendents(child);
                 }
             }
-
         }
         addDescendents(rootNode);
 
         // Get options
-        const gallerySamplesElement = document.querySelector("#gallerySamples") as HTMLSelectElement;
-        const galleryMasksElement = document.querySelector("#galleryMasks") as HTMLSelectElement;
+        const gallerySamplesElement = document.querySelector(
+            "#gallerySamples"
+        ) as HTMLSelectElement;
+        const galleryMasksElement = document.querySelector(
+            "#galleryMasks"
+        ) as HTMLSelectElement;
         const showSample = gallerySamplesElement.selectedIndex == 0;
         const showMasks = galleryMasksElement.selectedIndex == 1;
-        d3.select(gallerySamplesElement)
-            .on("change", () => {
-                this.displayMetadata(rootNode)
-            });
-        d3.select(galleryMasksElement)
-            .on("change", () => {
-                this.displayMetadata(rootNode)
-            });
+        d3.select(gallerySamplesElement).on("change", () => {
+            this.displayMetadata(rootNode);
+        });
+        d3.select(galleryMasksElement).on("change", () => {
+            this.displayMetadata(rootNode);
+        });
 
         // Add statistics
         this.nodeNameInput.value = rootNode.data.name;
-        document.querySelector("#leafCount").innerHTML = descendents.length.toString();
-        document.querySelector("#descendantDistance").innerHTML =
-            d3.median(descendents.filter((n) => n.data.children.length > 0).map((n) => n.data.distance)).toString();
+        document.querySelector("#leafCount").innerHTML =
+            descendents.length.toString();
+        document.querySelector("#descendantDistance").innerHTML = d3
+            .median(
+                descendents
+                    .filter((n) => n.data.children.length > 0)
+                    .map((n) => n.data.distance)
+            )
+            .toString();
 
         // Add gallery
         const imageList: string[] = [];
         const imageListLength = 20;
         // const hashTags: Set<string> = new Set();
         // const hashTags: string[] = [];
-        const hashTags: {[key: string]: any} = {};
+        const hashTags: { [key: string]: any } = {};
         //display all keys
         // var metaData: {[key: string]: any} = {};
-
 
         // function findMetadataKeys (datum: HierarchyDatum) {
         //     if (datum.children && !datum.children[0].children){
@@ -455,31 +491,38 @@ export class Dendrogram extends ClusterGraph {
         const findMedia = (datum: HierarchyDatum) => {
             if (showMasks) {
                 if (datum.metadata._maskFile) {
-                    imageList.push(datum.metadata._maskFile)
+                    imageList.push(datum.metadata._maskFile);
                 }
             } else {
                 if (datum.metadata._mediaPath) {
                     // imageList.push(datum.metadata._image);
-                    imageList.push(datum.metadata._mediaPath[0]);
+                    imageList.push(
+                        datum.metadata._mediaPath[0].replace("\\\\", "/")
+                    );
                 }
-                if (datum.metadata.node){
+                if (datum.metadata.node) {
                     //for other metadata
-                    if (datum.metadata.node.all_hashtags){
-                        datum.metadata.node.all_hashtags.split(',').forEach( (item:string) => {
-                            if (item == "''") { return; }
-                            item = item.trim().slice(1,-1)
-                            var path:String = datum.metadata._mediaPath[0]
-                            path = path.split('/').pop().split('.')[0]
-                            if (item in hashTags){
-                                hashTags[item]["counter"] += 1;
-                                hashTags[item]["origin"] = hashTags[item]["origin"].concat([path])
-                            }
-                            else {
-                                hashTags[item] = {};
-                                hashTags[item]["counter"] = 1;
-                                hashTags[item]["origin"] = [path]
-                            }
-                        });
+                    if (datum.metadata.node.all_hashtags) {
+                        datum.metadata.node.all_hashtags
+                            .split(",")
+                            .forEach((item: string) => {
+                                if (item == "''") {
+                                    return;
+                                }
+                                item = item.trim().slice(1, -1);
+                                var path: String = datum.metadata._mediaPath[0];
+                                path = path.split("/").pop().split(".")[0];
+                                if (item in hashTags) {
+                                    hashTags[item]["counter"] += 1;
+                                    hashTags[item]["origin"] = hashTags[item][
+                                        "origin"
+                                    ].concat([path]);
+                                } else {
+                                    hashTags[item] = {};
+                                    hashTags[item]["counter"] = 1;
+                                    hashTags[item]["origin"] = [path];
+                                }
+                            });
                     }
                 }
             }
@@ -497,41 +540,39 @@ export class Dendrogram extends ClusterGraph {
         findMedia(rootNode.data);
         // // combine hastag key and value
         // for (var key in hashTags) {
-        //     // check if the property/key is defined in the object itself, not in parent         
+        //     // check if the property/key is defined in the object itself, not in parent
         //     console.log(key, hashTags[key]);
         // }
         const hashtags = d3.select("#hashTags");
-        hashtags
-            .selectAll("div").remove();
+        hashtags.selectAll("div").remove();
         hashtags
             .selectAll("div")
             .data(Object.keys(hashTags))
             // .data(Array.from(hashTags))
             .enter()
             .append("div")
-            .classed('hashtag', true)
-            .text( d => {return d+" "+hashTags[d]['counter'];})
+            .classed("hashtag", true)
+            .text((d) => {
+                return d + " " + hashTags[d]["counter"];
+            })
             .on("mouseover", (d) => {
                 hoverTimeout = setTimeout(() => {
-                    const highlight = hashTags[d]['origin'];
-                    highlight.forEach((e:String) => {
-                        d3.select("#"+e)
-                            .style("border-color", "yellow")
+                    const highlight = hashTags[d]["origin"];
+                    highlight.forEach((e: String) => {
+                        d3.select("#" + e).style("border-color", "yellow");
                     });
-                }, 100)
+                }, 100);
             })
             .on("mouseleave", (d) => {
                 clearTimeout(hoverTimeout);
-                const highlight = hashTags[d]['origin'];
-                highlight.forEach((e:String) => {
-                    d3.select("#"+e)
-                        .style("border-color", "#2e2e2e")
+                const highlight = hashTags[d]["origin"];
+                highlight.forEach((e: String) => {
+                    d3.select("#" + e).style("border-color", "#2e2e2e");
                 });
-            })
+            });
         const imageGallery = d3.select("#imageGallery");
         let hoverTimeout: NodeJS.Timeout;
-        imageGallery
-            .selectAll("div").remove();
+        imageGallery.selectAll("div").remove();
         imageGallery
             .selectAll("div")
             .data(imageList)
@@ -541,105 +582,119 @@ export class Dendrogram extends ClusterGraph {
                 hoverTimeout = setTimeout(() => {
                     d3.select("#imagePopup")
                         .style("display", "block")
-                        .style("background-image", `url(${d.replace('\\','\\\\')})`)
-                }, 500)
+                        .style(
+                            "background-image",
+                            `url(${d.replace("\\\\", "/")})`
+                        );
+                }, 500);
             })
             .on("mouseleave", () => {
                 clearTimeout(hoverTimeout);
-                d3.select("#imagePopup")
-                    .style("display", "none")
+                d3.select("#imagePopup").style("display", "none");
             })
             .append("img")
             .attr("src", (d) => {
                 return d;
             })
             .attr("id", (d) => {
-                return d.split('/').pop().split('.')[0];
+                return d.split("/").pop().split(".")[0];
             })
             .attr("loading", "lazy");
-        
+
         findMedia(rootNode.data);
         // Bind export
-        d3.select("#exportButton")
-            .on("click", () => {
-                console.log("exporting");
-                const data = descendents
-                    .filter((d) => Object.keys(d.data.metadata).length > 0)
-                    .map((d) => d.data.metadata);
+        d3.select("#exportButton").on("click", () => {
+            console.log("exporting");
+            const data = descendents
+                .filter((d) => Object.keys(d.data.metadata).length > 0)
+                .map((d) => d.data.metadata);
 
-                const dlAnchorElem = document.getElementById('downloadAnchorElem') as HTMLLinkElement;
-                dlAnchorElem.href = URL.createObjectURL(
-                    new Blob([JSON.stringify(data)], {
-                        type: "application/json"
-                    })
-                );
-                dlAnchorElem.setAttribute("download", "clusters.json");
-                dlAnchorElem.click();
-            });
+            const dlAnchorElem = document.getElementById(
+                "downloadAnchorElem"
+            ) as HTMLLinkElement;
+            dlAnchorElem.href = URL.createObjectURL(
+                new Blob([JSON.stringify(data)], {
+                    type: "application/json",
+                })
+            );
+            dlAnchorElem.setAttribute("download", "clusters.json");
+            dlAnchorElem.click();
+        });
 
         // Add objects
-        const objects: { [key: string]: { probabilities: number[], count: number } } = {};
+        const objects: {
+            [key: string]: { probabilities: number[]; count: number };
+        } = {};
         for (const node of descendents) {
             if ("_objects" in node.data.metadata) {
                 for (const object in node.data.metadata._objects) {
                     if (object in objects) {
                         objects[object].count += 1;
-                        objects[object].probabilities.push(node.data.metadata._objects[object])
+                        objects[object].probabilities.push(
+                            node.data.metadata._objects[object]
+                        );
                     } else {
                         objects[object] = {
-                            probabilities: [node.data.metadata._objects[object]],
-                            count: 1
-                        }
+                            probabilities: [
+                                node.data.metadata._objects[object],
+                            ],
+                            count: 1,
+                        };
                     }
                 }
             }
         }
 
         //TODO
-        const objectTableData = d3.select("#objectsTable")
-            .select("tbody");
+        const objectTableData = d3.select("#objectsTable").select("tbody");
         objectTableData.selectAll("tr").remove();
         const objectTableRows = objectTableData
             .selectAll("tr")
-            .data(Object.entries(objects).sort((a, b) => b[1].count - a[1].count))
+            .data(
+                Object.entries(objects).sort((a, b) => b[1].count - a[1].count)
+            )
             .enter()
             .append("tr");
 
-        objectTableRows
-            .append("td")
-            .html((d) => d[0]);
+        objectTableRows.append("td").html((d) => d[0]);
 
-        objectTableRows
-            .append("td")
-            .html((d) => d[1].count.toString());
+        objectTableRows.append("td").html((d) => d[1].count.toString());
 
         objectTableRows
             .append("td")
             .html((d) => d3.median(d[1].probabilities).toString());
     }
 
-    runColorGraph(){
-        const attributeName = this.colorNodeInput.value.split(',')[0]
-        const colorDimension = parseInt(this.colorNodeInput.value.split(',')[1])
+    runColorGraph() {
+        const attributeName = this.colorNodeInput.value.split(",")[0];
+        const colorDimension = parseInt(
+            this.colorNodeInput.value.split(",")[1]
+        );
         const colors = this.colours(colorDimension);
-        const colorMap: {[key:string]: number} = {};
-        const nodeCategories: {[key:string]: {[key: string]: any}} = {}
+        const colorMap: { [key: string]: number } = {};
+        const nodeCategories: { [key: string]: { [key: string]: any } } = {};
         // d3.select("svg g.nodes")
         //     .selectAll("circle.node")
         //     // @ts-ignore
         //     .filter((n) => n.data.name.toString() === nodeName)
         //     // .dispatch("mouseover"); // to zoom in, change to 'click'
-        this.colorGraph(this.root.data, attributeName, nodeCategories, colors, colorMap);
-        console.log(nodeCategories)
-        console.log(colors)
-        console.log(colorMap)
-        let legendBox = document.querySelector('#colorCode');
-        legendBox.innerHTML = ""
-        for ( const [key,value] of Object.entries(colorMap)){
-            let node:HTMLDivElement = document.createElement("div")
-            let colorBox = document.createElement('div')
-            colorBox.id = 'colorBox'
-            colorBox.style.backgroundColor = "hsl("+value+",100%,50%)";
+        this.colorGraph(
+            this.root.data,
+            attributeName,
+            nodeCategories,
+            colors,
+            colorMap
+        );
+        console.log(nodeCategories);
+        console.log(colors);
+        console.log(colorMap);
+        let legendBox = document.querySelector("#colorCode");
+        legendBox.innerHTML = "";
+        for (const [key, value] of Object.entries(colorMap)) {
+            let node: HTMLDivElement = document.createElement("div");
+            let colorBox = document.createElement("div");
+            colorBox.id = "colorBox";
+            colorBox.style.backgroundColor = "hsl(" + value + ",100%,50%)";
             let keyText = document.createElement("p");
             keyText.innerHTML = key;
             node.appendChild(colorBox);
@@ -655,60 +710,73 @@ export class Dendrogram extends ClusterGraph {
                 }
             });
         // this.updateZoom(node);  // to zoom in
-            
-
     }
 
-    colorGraph(datum: HierarchyDatum, key_attr: string, 
-        nodeCategories: {[key:string]: {[key: string]: any}}, colors: number[], 
-        colorMap:{[key:string]: number}) {
+    colorGraph(
+        datum: HierarchyDatum,
+        key_attr: string,
+        nodeCategories: { [key: string]: { [key: string]: any } },
+        colors: number[],
+        colorMap: { [key: string]: number }
+    ) {
         // update graph color based on an attribute
-        let categories:{[key: string]: any} = {'total':0}
+        let categories: { [key: string]: any } = { total: 0 };
         // leaf nodes
-        if (datum.metadata.node){
-            if (datum.metadata.node[key_attr] != null){
-                String(datum.metadata.node[key_attr]).split(',').forEach( (item:string) => {
-                    // claim a color
-                    if (!(item in colorMap)){
-                        colorMap[item] = colors.pop();
-                    }
-                    if (item in categories){
-                        categories[item] += 1;
-                    }
-                    else {
-                        categories[item] = 1;
-                    }
-                    categories['total'] += 1
-                });
+        if (datum.metadata.node) {
+            if (datum.metadata.node[key_attr] != null) {
+                String(datum.metadata.node[key_attr])
+                    .split(",")
+                    .forEach((item: string) => {
+                        // claim a color
+                        if (!(item in colorMap)) {
+                            colorMap[item] = colors.pop();
+                        }
+                        if (item in categories) {
+                            categories[item] += 1;
+                        } else {
+                            categories[item] = 1;
+                        }
+                        categories["total"] += 1;
+                    });
             }
         }
         // parent
-        else{
+        else {
             // left child
-            const leftChild:HierarchyDatum = datum.children[0]
+            const leftChild: HierarchyDatum = datum.children[0];
             if (!nodeCategories[leftChild.name]) {
-                this.colorGraph(leftChild, key_attr, nodeCategories, colors, colorMap);
+                this.colorGraph(
+                    leftChild,
+                    key_attr,
+                    nodeCategories,
+                    colors,
+                    colorMap
+                );
             }
-            const leftCategories = nodeCategories[leftChild.name]
-            for (const [key,value] of Object.entries(leftCategories)) {
-                if (key in categories){
+            const leftCategories = nodeCategories[leftChild.name];
+            for (const [key, value] of Object.entries(leftCategories)) {
+                if (key in categories) {
                     categories[key] += value;
-                }
-                else {
+                } else {
                     categories[key] = value;
                 }
                 // categories['total'] += value;
             }
-            const rightChild:HierarchyDatum = datum.children[1]
+            const rightChild: HierarchyDatum = datum.children[1];
             if (!nodeCategories[rightChild.name]) {
-                this.colorGraph(rightChild, key_attr, nodeCategories, colors, colorMap);
+                this.colorGraph(
+                    rightChild,
+                    key_attr,
+                    nodeCategories,
+                    colors,
+                    colorMap
+                );
             }
-            const rightCategories = nodeCategories[rightChild.name]                
-            for (const [key,value] of Object.entries(rightCategories)) {
-                if (key in categories){
+            const rightCategories = nodeCategories[rightChild.name];
+            for (const [key, value] of Object.entries(rightCategories)) {
+                if (key in categories) {
                     categories[key] += value;
-                }
-                else {
+                } else {
                     categories[key] = value;
                 }
                 // categories['total'] += value;
@@ -718,14 +786,17 @@ export class Dendrogram extends ClusterGraph {
             //         this.colorGraph(child.data, key_attr, categories);
             //     }
             // }
-        }       
-        nodeCategories[datum.name] = categories
+        }
+        nodeCategories[datum.name] = categories;
         datum.metadata.color = this.getColour(colorMap, categories);
         // console.log(datum.name+" "+this.getColour(colorMap, categories))
     }
 
     private colourFamily(familyRoot: d3.HierarchyNode<HierarchyDatum>) {
-        function nodeColour(node: d3.HierarchyNode<HierarchyDatum>, family: boolean) {
+        function nodeColour(
+            node: d3.HierarchyNode<HierarchyDatum>,
+            family: boolean
+        ) {
             let foundFamilyRoot: boolean = false;
             if (!family) {
                 if (node === familyRoot) {
@@ -737,11 +808,11 @@ export class Dendrogram extends ClusterGraph {
             }
             if (node.children) {
                 for (const child of node.children) {
-                    nodeColour(child, family)
+                    nodeColour(child, family);
                 }
             }
             node.data.familyRoot = foundFamilyRoot;
-            node.data.family = family
+            node.data.family = family;
         }
         const root = this.flatRoot ? this.flatRoot : this.root;
         nodeColour(root, false);
@@ -752,22 +823,20 @@ export class Dendrogram extends ClusterGraph {
             .selectAll("circle.node")
             .data(root.descendants())
             .style("fill", (n) => {
-                if (n.data.metadata.color){
-                    return n.data.metadata.color
-                }
-                else if (n.data.familyRoot) {
+                if (n.data.metadata.color) {
+                    return n.data.metadata.color;
+                } else if (n.data.familyRoot) {
                     return "#ff624a";
                 } else if (n.data.family) {
                     return "#fff53e";
-                } 
-                else {
+                } else {
                     return "rgba(255,245,62,0.1)";
                 }
             });
-        d3.select('svg g.links')
-            .selectAll('line.link')
+        d3.select("svg g.links")
+            .selectAll("line.link")
             .data(root.links())
-            .style('stroke', (n) =>  {
+            .style("stroke", (n) => {
                 if (n.source.data.familyRoot) {
                     return "#ff624a";
                 } else if (n.source.data.family) {
