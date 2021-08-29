@@ -1,5 +1,5 @@
-const path = require('path');
-const CopyPlugin = require('copy-webpack-plugin');
+const path = require("path");
+const CopyPlugin = require("copy-webpack-plugin");
 
 module.exports = {
     // entry: './src/index.ts',
@@ -8,32 +8,30 @@ module.exports = {
         rules: [
             {
                 test: /\.ts(x?)$/,
-                use: 'ts-loader',
-                exclude: /node_modules/
+                use: "ts-loader",
+                exclude: /node_modules/,
             },
             {
                 enforce: "pre",
                 test: /\.js$/,
-                loader: "source-map-loader"
-            }
-        ]
+                loader: "source-map-loader",
+            },
+        ],
     },
     devServer: {
         contentBase: path.join(__dirname, "dist"),
-        port: 8080
+        port: 8080,
     },
     resolve: {
-        extensions: ['.tsx', '.ts', '.js']
+        extensions: [".tsx", ".ts", ".js"],
     },
     output: {
-        filename: 'main.js',
+        filename: "main.js",
         publicPath: "/js",
-        path: path.resolve(__dirname, 'dist')
+        path: path.resolve(__dirname, "dist"),
     },
     plugins: [
-        new CopyPlugin([
-            {from: 'static/clusters.json', to: 'clusters.json'}
-        ]),
+        new CopyPlugin([{ from: "static/clusters.json", to: "clusters.json" }]),
     ],
-    devtool: "source-map"
+    devtool: "source-map",
 };

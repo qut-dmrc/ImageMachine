@@ -62,7 +62,6 @@ def descend_cluster(cluster_node, tree_node, metadata, driver, model):
 
 def clump(predictions, metadata, model, method='average', metric='euclidean'):
     pairwise_distances = scipy.spatial.distance.pdist(predictions, metric)
-    # print(type(pairwise_distances))
     clusters = scipy.cluster.hierarchy.linkage(pairwise_distances, method, metric)
 
     root_node = scipy.cluster.hierarchy.to_tree(clusters)

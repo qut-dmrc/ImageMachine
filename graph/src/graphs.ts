@@ -1,5 +1,5 @@
 import * as d3 from "d3";
-import { HierarchyNode } from "d3";
+import { hierarchy, HierarchyNode } from "d3";
 
 export interface HierarchyDatum {
     name: string;
@@ -265,6 +265,15 @@ export class Dendrogram extends ClusterGraph {
     private tree: d3.ClusterLayout<unknown> = d3.cluster();
     private pack: d3.PackLayout<unknown> = d3.pack();
     private flatRoot: d3.HierarchyNode<HierarchyDatum> = undefined;
+    private rootCircle: d3.HierarchyCircularNode<unknown>;
+    private focusCircle: d3.HierarchyCircularNode<unknown>;
+    private circleimgs: d3.Selection<
+        SVGGElement,
+        d3.HierarchyNode<HierarchyDatum>,
+        d3.BaseType,
+        unknown
+    >;
+    private view: number[];
 
     addOptions() {}
 
@@ -379,8 +388,10 @@ export class Dendrogram extends ClusterGraph {
     }
 
     async updateViz(vizType: String) {
+        this.svg.call(this.zoom.transform, d3.zoomIdentity.scale(1));
         if (vizType == "dendogram") {
             console.log("dendogram");
+            this.root = this.dendogram;
             this.draw(this.dendogram);
         }
         if (vizType == "bubble") {
@@ -412,30 +423,18 @@ export class Dendrogram extends ClusterGraph {
 
     drawbubble(root: d3.HierarchyNode<HierarchyDatum>) {
         this.clear();
-        this.pack(
+        this.rootCircle = this.pack(
             this.root
                 .sum((d) => (d.children ? d.children.length + 1 : 1))
-                // .sort((a, b) => {
-                //     let alength, blength;
-                //     alength = alength ? a.children.length + 1 : 1;
-                //     blength = blength ? b.children.length + 1 : 1;
-                //     return blength - alength;
-                // })
                 .sum((d) => d.distance || 1)
                 .sort((a, b) => b.data.distance - a.data.distance)
         );
-        // .sort(
-        //     (
-        //         a: d3.HierarchyCircularNode<HierarchyDatum>,
-        //         b: d3.HierarchyCircularNode<HierarchyDatum>
-        //     ) => b.children.length - a.children.length
-        // );
 
         let nodeHoverTimer: NodeJS.Timeout;
         let color = d3.scaleLinear().domain([0, 2]).range([0, 100]);
         // console.log(root)
         this.graph.append("g").classed("nodes", true);
-        let circleimgs = d3
+        this.circleimgs = d3
             .select("svg g.nodes")
             .selectAll("g.circleimg")
             .data(this.root.descendants())
@@ -445,7 +444,7 @@ export class Dendrogram extends ClusterGraph {
 
         // console.log(this.root.descendants());
 
-        circleimgs
+        this.circleimgs
             .append("defs")
             .append("pattern")
             .attr("id", (d, i) => {
@@ -466,7 +465,7 @@ export class Dendrogram extends ClusterGraph {
         //     .data(this.root.descendants())
         //     .enter()
 
-        circleimgs
+        this.circleimgs
             .append("circle")
             .classed("cnode", true)
             // .style("fill", (d)=> `url(})`);
@@ -499,8 +498,13 @@ export class Dendrogram extends ClusterGraph {
             })
             .on("click", (n) => {
                 this.displayMetadata(n);
-                // this.updateZoom(n);
+                this.updateZoomBubble(n);
             });
+        this.zoomTo([
+            this.rootCircle.x,
+            this.rootCircle.y,
+            this.rootCircle.r * 2,
+        ]);
     }
 
     selectCluster() {
@@ -579,6 +583,24 @@ export class Dendrogram extends ClusterGraph {
                 d3.mouse(this.svg.node())
             );
     }
+
+    zoomTo(v: number[]) {
+        const k = this.svgBounds.width / v[2];
+        console.log(k);
+        this.view = v;
+
+        this.circleimgs.attr(
+            "transform",
+            (d: PositionedHierarchyCircularNode) =>
+                `translate(${(d.x - v[0]) * k},${(d.y - v[1]) * k})`
+        );
+        this.circleimgs.attr(
+            "r",
+            (d: PositionedHierarchyCircularNode) => d.r * k
+        );
+    }
+
+    updateZoomBubble(n: d3.HierarchyNode<HierarchyDatum>) {}
 
     displayMetadata(rootNode: d3.HierarchyNode<HierarchyDatum>) {
         // Update url

@@ -1,5 +1,4 @@
-import { ClusterGraph, Dendrogram, HierarchyDatum } from "./graphs";
-// import { BubbleGraph } from "./bubble";
+import { Dendrogram, HierarchyDatum } from "./graphs";
 import * as d3 from "d3";
 
 /**
@@ -43,7 +42,9 @@ class ClusterGraphContainer {
     private flatValueElement = <HTMLInputElement>(
         document.querySelector("#flatValue")
     );
-    // private compactElement = <HTMLInputElement>document.querySelector("#compactCheck");
+    private compactElement = <HTMLInputElement>(
+        document.querySelector("#compactCheck")
+    );
 
     // Cluster visualiser
     private clusterElement = <HTMLDivElement>(
@@ -67,6 +68,13 @@ class ClusterGraphContainer {
         await this.getData();
         this.createData();
         this.maxClusterDistance();
+
+        const containerNode = <HTMLElement>this.container.node();
+
+        const containerSize: [number, number] = [
+            containerNode.offsetWidth,
+            containerNode.offsetHeight,
+        ];
         new Dendrogram(
             this.root,
             this.graph,
