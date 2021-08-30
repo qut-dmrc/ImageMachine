@@ -142,6 +142,7 @@ export abstract class ClusterGraph {
             });
         this.svg.call(this.zoom);
         d3.select("#zoomReset").on("click", () => {
+            //@ts-ignore
             this.svg.call(this.zoom.transform, d3.zoomIdentity.scale(1));
         });
     }
@@ -388,6 +389,7 @@ export class Dendrogram extends ClusterGraph {
     }
 
     async updateViz(vizType: String) {
+        //@ts-ignore
         this.svg.call(this.zoom.transform, d3.zoomIdentity.scale(1));
         if (vizType == "dendogram") {
             console.log("dendogram");

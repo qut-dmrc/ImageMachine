@@ -14,10 +14,10 @@ import logging
 import datetime
 import sys
 
-from scipy.cluster.vq import kmeans2
+# from scipy.cluster.vq import kmeans2
 
 from .predict import *
-from .clump import *
+from .clump import kmeans2,clump
 from .tools import *
 
 class ImageMachine:

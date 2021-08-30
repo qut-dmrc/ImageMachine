@@ -1,5 +1,5 @@
 const path = require("path");
-const CopyPlugin = require("copy-webpack-plugin");
+// const CopyPlugin = require("copy-webpack-plugin");
 
 module.exports = {
     // entry: './src/index.ts',
@@ -31,7 +31,7 @@ module.exports = {
         path: path.resolve(__dirname, "dist"),
     },
     plugins: [
-        new CopyPlugin([{ from: "static/clusters.json", to: "clusters.json" }]),
+        // new CopyPlugin([{ from: "static/clusters_kmeans.json", to: "clusters.json" }]),
     ],
     devtool: "source-map",
 };
