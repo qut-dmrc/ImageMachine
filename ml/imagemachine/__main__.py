@@ -11,12 +11,14 @@ from .imagemachine import *
 @click.option('-fieldname','--fieldname', nargs=1, default=None)
 @click.option('-d','--download', is_flag=True)
 @click.option('-s','--size', nargs=1, default=None, type=int)
+@click.option('-p','--pca', nargs=1, default=10, type=int)
+@click.option('-k','--kclusters', nargs=1, default=16, type=int)
 @click.option('-t','--time', is_flag=True)
 @click.option('-size_list', 'size_list', nargs=1, default=None)
 @click.option('-clustering', is_flag=True)
 @click.option('-vgg16','--vgg16', nargs=1, default=None)
 @click.option('-vgg19','--vgg19', nargs=1, default=None)
-def main(config, img, _zip, metadata, fieldname, download, size, time, size_list, clustering, vgg16, vgg19):
+def main(config, img, _zip, metadata, fieldname, download, size, time, size_list, clustering, vgg16, vgg19, pca, kclusters):
     # TODO: check
     if config:
         with open(os.path.join(os.getcwd(),config)) as f:
@@ -29,7 +31,7 @@ def main(config, img, _zip, metadata, fieldname, download, size, time, size_list
         time = params['time']
         size_list = params['size_list']
 
-    im = ImageMachine()
+    im = ImageMachine(pca,kclusters)
     if download:
         img = im.download_images(metadata, fieldname, size = size)
     if time:

@@ -14,7 +14,14 @@ import logging
 import datetime
 import sys
 
-from .predict import *
+from tensorflow.python.keras.applications import vgg16
+
+# clustering and dimensionality reduction
+from sklearn.cluster import KMeans
+from sklearn.decomposition import PCA
+import scipy.spatial.distance as dist
+
+from .predict import predict_image
 from .clump import *
 from .tools import *
 
@@ -26,6 +33,17 @@ class ImageMachine:
     src_meta_parent = os.path.join("input_data","metadata")
     dest_meta_parent = "output_data"
     dest_vis_parent = "../graph/static/"
+
+    def __init__(self, pca_dimensions=10, k_clusters=16):
+        self.random_seed = 1
+        self.pca_dimensions = pca_dimensions
+        self.k_clusters = k_clusters
+        self.tree = {}
+        self.tree['name'] = 'root'
+        self.tree['centroid'] = ''
+        self.tree['children'] = {}
+        self.image_to_features_map = {} # {'image1' -> [vgg16,vgg19], 'image2' -> [vgg16,vgg19]}
+        self.image_to_metadata_map = {}
 
     def download_images(self, src_meta, fieldname, dest_folder=None, size=None):
         """
@@ -72,10 +90,16 @@ class ImageMachine:
             if zip_folder != "":
                 metadata_out, vgg16_predictions, vgg19_predictions = self.readFromZip(os.path.join(self.src_img_parent, zip_folder), metadata, datasize) # read from zip
             else:
-                metadata_out, vgg16_predictions, vgg19_predictions = self.readFromFolder(os.path.join(self.src_img_parent, src_img), metadata, datasize) # read from file folder
+                metadata_out, vgg16_predictions, vgg19_predictions= self.readFromFolder(os.path.join(self.src_img_parent, src_img), metadata, datasize) # read from file folder
         else:
             # get images online
             metadata_out, vgg16_predictions, vgg19_predictions = self.readFromOnline(metadata, datasize)
+        # vgg16_predictions [array([1 2 3 ], dtype=float32),array([1 2 3], dtype=float32)]
+        # vgg16_predictions = np.array(vgg16_predictions) [[1,2,3],[1,2,3],...,[1,2,3]]
+        # x = self.dimensionality_reduce(np.array(vgg16_predictions))
+        # self.tree['children'] = self.cluster_files(x, np.array(list(self.image_to_features_map.keys())))
+        # self.tree['children'] = self.get_features_dataset_from_images(self.tree['children'])
+        # print(self.tree)
         self.clustering(vgg16_predictions, vgg19_predictions, metadata_out, datasize)
 
     def time_process_images(self, sizeArray, src_img=None, zip_folder="", src_meta=None, fieldname=None):        
@@ -157,8 +181,8 @@ class ImageMachine:
 
     def readFromFolder(self, source_file, metadata, datasize=None):
         logging.info('{}:Reading images from folder...'.format(datetime.datetime.now()))
-        vgg16_predictions = []
-        vgg19_predictions = []
+        # vgg16_predictions = []
+        # vgg19_predictions = []
         
         newmeta_filename = "metadata_{}.json".format(datasize)
         vgg16_filename = "vgg16_{}.npy".format(datasize)
@@ -168,7 +192,7 @@ class ImageMachine:
         if metadata and len(metadata) > 0:
             # follow the sequence in metadatas
             logging.info('{}:Looping through metadata...'.format(datetime.datetime.now()))
-            new_metadata = []
+            # new_metadata = []
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 for node in metadata:
                     apath = node['_mediaPath'][0].replace('\\','/')
@@ -176,26 +200,11 @@ class ImageMachine:
                     if os.path.exists(os.path.join(source_file,apath)):
                         # new_metadata.append(node)
                         # executor.submit(self.predictImage, source_file, apath, vgg16_predictions, vgg19_predictions)
-                        executor.submit(self.predictImage, source_file, apath, new_metadata, node, vgg16_predictions, vgg19_predictions, True)
+                        executor.submit(self.predictImage, source_file, apath, node, True)
                         if datasize:
                             datasize -= 1
                             if datasize == 0:
                                 break
-                metadata = new_metadata
-            # # correct version, non concurrent
-            # for node in metadata:
-            #     apath = node['_mediaPath'][0].replace('\\','/')
-            #     apath = apath.split('/')[-1] # filename only
-            #     if os.path.exists(os.path.join(source_file,apath)):
-            #         new_metadata.append(node)
-            #         output = predict_image(Image.open(os.path.join(source_file,apath)))
-            #         vgg16_predictions.append(output[0])
-            #         vgg19_predictions.append(output[1])
-            #         if datasize:
-            #             datasize -= 1
-            #             if datasize == 0:
-            #                 break
-            # metadata = new_metadata
         ## no metadata
         else:
             logging.info('{}:No metadata provided, creating new metadata...'.format(datetime.datetime.now()))
@@ -206,14 +215,18 @@ class ImageMachine:
                         node = os.path.join(folder, name)
                         # self.appendToMetadata(node, metadata)
                         # executor.submit(self.predictImage, path, name, vgg16_predictions, vgg19_predictions)
-                        executor.submit(self.predictImage, path, name, metadata, node, vgg16_predictions, vgg19_predictions, False)
+                        executor.submit(self.predictImage, path, name, node, False)
                         if datasize:
                             datasize -= 1
                             if datasize == 0:
                                 break
         exec_time = time.time() - start_time
         logging.info('{}:Finished processing images. Excecution time: {}'.format(datetime.datetime.now(), exec_time))
-        writeJSONToFile(os.path.join(self.src_meta_parent,newmeta_filename), metadata, 'w')
+        
+        # metadata = list(self.image_to_metadata_map.values())
+        vgg16_predictions = [feature[0] for feature in self.image_to_features_map.values()]
+        vgg19_predictions = [feature[1] for feature in self.image_to_features_map.values()]
+        writeJSONToFile(os.path.join(self.src_meta_parent,newmeta_filename), self.image_to_metadata_map, 'w')
         np.save(os.path.join(self.src_meta_parent,vgg16_filename), vgg16_predictions)
         np.save(os.path.join(self.src_meta_parent,vgg19_filename), vgg19_predictions)
         return metadata, vgg16_predictions, vgg19_predictions
@@ -266,6 +279,83 @@ class ImageMachine:
         np.save(os.path.join(self.src_meta_parent,vgg19_filename), vgg19_predictions)
         return metadata, vgg16_predictions, vgg19_predictions
 
+    def dimensionality_reduce(self, features_list):
+        # Dimensionality reduction using Pricipal Component Analysis
+        pca = PCA(n_components=self.pca_dimensions, random_state=self.random_seed)
+        pca.fit(features_list) # Find out best components to use
+        x = pca.transform(features_list) # Transform the dataset to those components
+    
+        return x
+
+    # Deals with the initial dataset (dataset --> files + clusters)
+    def cluster_files(self, dataset, image_filenames):
+
+        kmeans = self.kmeans_clustering(dataset)
+
+        groups = self.image_to_cluster_file(dataset, image_filenames, kmeans)
+        return groups
+
+    def kmeans_clustering(self, dataset):
+        kmeans = KMeans(n_clusters = self.k_clusters, random_state=self.random_seed) # Create clusterer
+        kmeans.fit(dataset) # Train clusterer on current data
+        kmeans.predict(dataset) # Apply clusterer on current data
+
+        return kmeans
+    
+    def image_to_cluster_file(self, dataset, image_filenames, kmeans):
+        groups = {} # Essentially create a dictionary with cluster ids as the keys and image filenames as the values
+        # group_centroid_image = {}
+        
+        # for file, cluster in zip(image_filenames, kmeans.labels_): # Map the image_filename to its label
+        for i in range(len(image_filenames)):
+            file = image_filenames[i]
+            cluster = int(kmeans.labels_[i])
+            vector = dataset[i]
+            cluster_centroid = kmeans.cluster_centers_[cluster]
+            dist_to_centroid = dist.euclidean(vector,cluster_centroid)
+            
+            if cluster not in groups.keys():
+                groups[cluster] = {} # Create new key
+                groups[cluster]['name'] = cluster
+                groups[cluster]['centroid'] = file
+                groups[cluster]['dist_to_centroid'] = dist_to_centroid
+                groups[cluster]['data'] = []
+                groups[cluster]['children'] = []
+                # group_centroid_image[cluster].append((file, ))
+            groups[cluster]['data'].append(file) # Append value to key
+            if dist_to_centroid < groups[cluster]['dist_to_centroid']:
+                groups[cluster]['centroid'] = file
+                groups[cluster]['dist_to_centroid'] = dist_to_centroid
+        
+        return groups
+
+    # Gets image from fileName and returns the feature set of the image
+    def get_features_dataset_from_images(self, childrenToProcess):
+        for cluster_index in range(len(list(childrenToProcess.keys()))):
+            if len(childrenToProcess[cluster_index]['data']) <= self.k_clusters: # If less than K images, this is the end of the cluster branch (leaf)
+                pass
+        # for fileName in futureFileSet:
+            else:
+                # print('Filename',fileName)
+                data = {}
+                # image_filenames = []
+                # fileHandle = open(fileName, "r")
+                # fileData = fileHandle.read()
+                # files = fileData.split("\n")[:-1]
+                files = childrenToProcess[cluster_index]['data']
+                data = { file: self.image_to_features_map[file][0] for file in files }
+                
+                image_filenames = np.array(list(data.keys()))
+                features_list = np.array(list(data.values()))
+                # features_list = features_list.reshape(-1,features_list.shape[-1])
+                x = self.dimensionality_reduce(features_list)
+
+                kmeans = self.kmeans_clustering(x)
+                childrenToProcess[cluster_index]['children'] = self.image_to_cluster_file(x, image_filenames, kmeans)
+                childrenToProcess[cluster_index]['children'] = self.get_features_dataset_from_images(childrenToProcess[cluster_index]['children'])
+                
+        return list(childrenToProcess.values())
+
     def clustering(self, vgg16_predictions, vgg19_predictions, metadata_out, datasize):
         if not isinstance(vgg16_predictions,list):
             vgg16_predictions = np.load(os.path.join(self.src_meta_parent, vgg16_predictions))
@@ -275,19 +365,22 @@ class ImageMachine:
             metadata_out = self.get_metadata(metadata_out, datasize)
         start_time = time.time()
         logging.info('{}:Clustering images'.format(datetime.datetime.now()))
-        tree_vgg16 = clump(vgg16_predictions, metadata_out, "vgg16")
-        tree_vgg19 = clump(vgg19_predictions, metadata_out, "vgg19")
+        # tree_vgg16 = clump(vgg16_predictions, metadata_out, "vgg16")
+        # tree_vgg19 = clump(vgg19_predictions, metadata_out, "vgg19")
+        x = self.dimensionality_reduce(np.array(vgg16_predictions))
+        self.tree['children'] = self.cluster_files(x, np.array(list(self.image_to_features_map.keys())))
+        self.tree['children'] = self.get_features_dataset_from_images(self.tree['children'])
         exec_time = time.time()-start_time
-        clusterData = {}
-        clusterData['tree_vgg16'] = tree_vgg16
-        clusterData['tree_vgg19'] = tree_vgg19
-        writeJSONToFile("../graph/static/clusters_{}.json".format(datasize), clusterData, 'w')
+        # clusterData = {}
+        # clusterData['tree_vgg16'] = tree_vgg16
+        # clusterData['tree_vgg19'] = tree_vgg19
+        writeJSONToFile("../graph/static/clusters_{}.json".format(datasize), self.tree, 'w')
         logging.info('{}:Clusters saved to static folder. Clustering time: {}'.format(datetime.datetime.now(), exec_time))
 
     def predictImageInZip(self, _zipfolder, apath, metadata, node, vgg16_predictions, vgg19_predictions, isNode):
         with _zipfolder.open(apath,'rb') as image:
             ## Model Filters
-            output = predict_image(Image.open(image))
+            output = predict_image(image)
             vgg16_predictions.append(output[0])
             vgg19_predictions.append(output[1])
             if isNode:
@@ -295,14 +388,21 @@ class ImageMachine:
             else:
                 self.appendToMetadata(node, metadata)
 
-    def predictImage(self, _folder, apath, metadata, node, vgg16_predictions, vgg19_predictions, isNode):
-        output = predict_image(Image.open(os.path.join(_folder,apath)))
-        vgg16_predictions.append(output[0])
-        vgg19_predictions.append(output[1])
+    def predictImage(self, _folder, apath, node, isNode):
+        output = predict_image(os.path.join(_folder,apath))
+        # vgg16_predictions.append(output[0])
+        # vgg19_predictions.append(output[1])
+        self.image_to_features_map[os.path.join(_folder,apath)] = output
+        
         if isNode:
-            metadata.append(node)
+            # metadata.append(node)
+            self.image_to_metadata_map[os.path.join(_folder,apath)] = node
         else:
-            self.appendToMetadata(node, metadata)
+            # self.appendToMetadata(node, metadata)
+            filemeta = {}
+            filemeta['node'] = {}
+            filemeta['_mediaPath'] = [node]
+            self.image_to_metadata_map[os.path.join(_folder,apath)] = filemeta
 
     def predictImageOnline(self, img, metadata, node, vgg16_predictions, vgg19_predictions):
         output = predict_image(img)
