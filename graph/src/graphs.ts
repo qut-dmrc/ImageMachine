@@ -473,20 +473,59 @@ export class Dendrogram extends ClusterGraph {
         // const hashTags: Set<string> = new Set();
         // const hashTags: string[] = [];
         const hashTags: { [key: string]: any } = {};
-        //display all keys
-        // var metaData: {[key: string]: any} = {};
+        // //display all keys
+        // var metaData: { [key: string]: any } = {};
 
-        // function findMetadataKeys (datum: HierarchyDatum) {
-        //     if (datum.children && !datum.children[0].children){
-        //         console.log(datum.children[0].metadata.node)
+        // function findMetadataKeys(datum: HierarchyDatum) {
+        //     if (datum.children && !datum.children[0].children) {
+        //         console.log(datum.children[0].metadata.node);
         //         return datum.children[0].metadata.node;
         //     }
-        //     findMetadataKeys(datum.children[0])
+        //     findMetadataKeys(datum.children[0]);
         // }
+        // // const keys = findMetadataKeys(rootNode.data)
+        // // console.log(keys)
+        // metaData = findMetadataKeys(rootNode.data);
+        // console.log(metaData);
+        var clusterIds: { [key: string]: any } = {};
+
+        function imageToClusterIds(
+            node: d3.HierarchyNode<HierarchyDatum>,
+            prevClusters: string
+        ) {
+            if (node.children) {
+                for (const child of node.children) {
+                    imageToClusterIds(
+                        child,
+                        prevClusters + "," + node.data.name
+                    );
+                }
+            } else {
+                clusterIds[node.data.metadata._mediaPath[0]] =
+                    prevClusters + "," + node.data.name;
+            }
+        }
         // const keys = findMetadataKeys(rootNode.data)
         // console.log(keys)
-        // // metaData = findMetadataKeys(rootNode.data);
-        // // console.log(metaData)
+        imageToClusterIds(rootNode, "");
+        // print to console
+        for (var key in clusterIds) {
+            // check if the property/key is defined in the object itself, not in parent
+            console.log(key, clusterIds[key]);
+        }
+        //export to json
+        d3.select("#exportClusterIdsButton").on("click", () => {
+            const dlAnchorElem = document.getElementById(
+                "downloadAnchorElem"
+            ) as HTMLLinkElement;
+            dlAnchorElem.href = URL.createObjectURL(
+                new Blob([JSON.stringify(clusterIds)], {
+                    type: "application/json",
+                })
+            );
+            dlAnchorElem.setAttribute("download", "clusterIds.txt");
+            dlAnchorElem.click();
+        });
 
         const findMedia = (datum: HierarchyDatum) => {
             if (showMasks) {

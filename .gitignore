@@ -10,11 +10,10 @@ downloads
 metadata
 test2
 package-lock.json
-dist\main.js
 *.jpg
 *.png
-graph/static
-graph/dist
 *.egg-info
 *.log
 main.js
+graph/dist3
+graph/examples
