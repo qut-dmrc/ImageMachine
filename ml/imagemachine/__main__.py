@@ -25,7 +25,7 @@ def main(config, img, _zip, metadata, fieldname, download, size, time, size_list
             params = yaml.full_load(f)
         download = params['download']
         img = params['img']   
-        metadata = params['metadata']   
+        metadata = params['metadata']
         fieldname = params['fieldname']  
         size = params['size']      
         time = params['time']

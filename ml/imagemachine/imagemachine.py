@@ -241,7 +241,7 @@ class ImageMachine:
         vgg16_filename = "vgg16_{}.npy".format(datasize)
         vgg19_filename = "vgg19_{}.npy".format(datasize)
         start_time = time.time()
-        ## metadata provided  
+        ## metadata provided
         if metadata and len(metadata) > 0:
             # follow the sequence in metadatas
             logging.info('{}:Looping through metadata...'.format(datetime.datetime.now()))
@@ -333,7 +333,15 @@ class ImageMachine:
     def get_features_dataset_from_images(self, childrenToProcess):
         for cluster_index in range(len(list(childrenToProcess.keys()))):
             if len(childrenToProcess[cluster_index]['data']) <= self.k_clusters: # If less than K images, this is the end of the cluster branch (leaf)
-                pass
+                # add leaves to children as nodes
+                for child in childrenToProcess[cluster_index]['data']:
+                    node = {} # Create new key
+                    node['name'] = 'leaf'
+                    node['centroid'] = child
+                    node['dist_to_centroid'] = 0
+                    node['data'] = [child]
+                    node['children'] = []
+                    childrenToProcess[cluster_index]['children'].append(node)
         # for fileName in futureFileSet:
             else:
                 # print('Filename',fileName)
@@ -368,13 +376,13 @@ class ImageMachine:
         # tree_vgg16 = clump(vgg16_predictions, metadata_out, "vgg16")
         # tree_vgg19 = clump(vgg19_predictions, metadata_out, "vgg19")
         x = self.dimensionality_reduce(np.array(vgg16_predictions))
-        self.tree['children'] = self.cluster_files(x, np.array(list(self.image_to_features_map.keys())))
-        self.tree['children'] = self.get_features_dataset_from_images(self.tree['children'])
+        self.tree['children'] = self.cluster_files(x, np.array(list(self.image_to_features_map.keys()))) #first iteration
+        self.tree['children'] = self.get_features_dataset_from_images(self.tree['children']) # subgroups
         exec_time = time.time()-start_time
         # clusterData = {}
         # clusterData['tree_vgg16'] = tree_vgg16
         # clusterData['tree_vgg19'] = tree_vgg19
-        writeJSONToFile("../graph/static/clusters_{}.json".format(datasize), self.tree, 'w')
+        writeJSONToFile("../graph/static/clusters.json", self.tree, 'w')
         logging.info('{}:Clusters saved to static folder. Clustering time: {}'.format(datetime.datetime.now(), exec_time))
 
     def predictImageInZip(self, _zipfolder, apath, metadata, node, vgg16_predictions, vgg19_predictions, isNode):
