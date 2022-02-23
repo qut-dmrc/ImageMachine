@@ -41,6 +41,7 @@ class ImageMachine:
         self.tree = {}
         self.tree['name'] = 'root'
         self.tree['centroid'] = ''
+        self.tree['dist_to_centroid'] = ''
         self.tree['children'] = {}
         self.image_to_features_map = {} # {'image1' -> [vgg16,vgg19], 'image2' -> [vgg16,vgg19]}
         self.image_to_metadata_map = {}
@@ -292,8 +293,8 @@ class ImageMachine:
 
         kmeans = self.kmeans_clustering(dataset)
 
-        groups = self.image_to_cluster_file(dataset, image_filenames, kmeans)
-        return groups
+        [groups,root_centroid_img, root_img_to_centroid_dist] = self.image_to_cluster_file(dataset, image_filenames, kmeans, True)
+        return [groups,root_centroid_img, root_img_to_centroid_dist]
 
     def kmeans_clustering(self, dataset):
         kmeans = KMeans(n_clusters = self.k_clusters, random_state=self.random_seed) # Create clusterer
@@ -302,16 +303,20 @@ class ImageMachine:
 
         return kmeans
     
-    def image_to_cluster_file(self, dataset, image_filenames, kmeans):
+    def image_to_cluster_file(self, dataset, image_filenames, kmeans, root=False):
         groups = {} # Essentially create a dictionary with cluster ids as the keys and image filenames as the values
         # group_centroid_image = {}
         
         # for file, cluster in zip(image_filenames, kmeans.labels_): # Map the image_filename to its label
+        if root:
+            total_centroid = [0] * len(kmeans.cluster_centers_[1])
         for i in range(len(image_filenames)):
             file = image_filenames[i]
             cluster = int(kmeans.labels_[i])
             vector = dataset[i]
             cluster_centroid = kmeans.cluster_centers_[cluster]
+            if root:
+                total_centroid = [sum(x) for x in zip(total_centroid,cluster_centroid)]
             dist_to_centroid = dist.euclidean(vector,cluster_centroid)
             
             if cluster not in groups.keys():
@@ -321,13 +326,21 @@ class ImageMachine:
                 groups[cluster]['dist_to_centroid'] = dist_to_centroid
                 groups[cluster]['data'] = []
                 groups[cluster]['children'] = []
+
                 # group_centroid_image[cluster].append((file, ))
             groups[cluster]['data'].append(file) # Append value to key
             if dist_to_centroid < groups[cluster]['dist_to_centroid']:
                 groups[cluster]['centroid'] = file
                 groups[cluster]['dist_to_centroid'] = dist_to_centroid
+        if root:
+            average_centroid = [x/len(image_filenames) for x in total_centroid]
+            clusters_avg_centroid_diff = [dist.euclidean(x,average_centroid) for x in kmeans.cluster_centers_]
+            root_centroid_index = clusters_avg_centroid_diff.index(min(clusters_avg_centroid_diff))
+            [root_centroid_img, root_centroid_dist] = [groups[root_centroid_index]['centroid'],groups[root_centroid_index]['dist_to_centroid']]
+        else:
+            [root_centroid_img, root_centroid_dist] = [None, None]
         
-        return groups
+        return [groups, root_centroid_img, root_centroid_dist]
 
     # Gets image from fileName and returns the feature set of the image
     def get_features_dataset_from_images(self, childrenToProcess):
@@ -359,7 +372,7 @@ class ImageMachine:
                 x = self.dimensionality_reduce(features_list)
 
                 kmeans = self.kmeans_clustering(x)
-                childrenToProcess[cluster_index]['children'] = self.image_to_cluster_file(x, image_filenames, kmeans)
+                [childrenToProcess[cluster_index]['children'],_,_] = self.image_to_cluster_file(x, image_filenames, kmeans)
                 childrenToProcess[cluster_index]['children'] = self.get_features_dataset_from_images(childrenToProcess[cluster_index]['children'])
                 
         return list(childrenToProcess.values())
@@ -376,7 +389,11 @@ class ImageMachine:
         # tree_vgg16 = clump(vgg16_predictions, metadata_out, "vgg16")
         # tree_vgg19 = clump(vgg19_predictions, metadata_out, "vgg19")
         x = self.dimensionality_reduce(np.array(vgg16_predictions))
-        self.tree['children'] = self.cluster_files(x, np.array(list(self.image_to_features_map.keys()))) #first iteration
+        [self.tree['children'],root_centroid_img, root_centroid_img_dist] = self.cluster_files(x, np.array(list(self.image_to_features_map.keys()))) #first iteration
+        # print("root centroid")
+        # print(root_centroid_img, root_centroid_img_dist)
+        self.tree['centroid'] = root_centroid_img
+        self.tree['dist_to_centroid'] = root_centroid_img_dist
         self.tree['children'] = self.get_features_dataset_from_images(self.tree['children']) # subgroups
         exec_time = time.time()-start_time
         # clusterData = {}
