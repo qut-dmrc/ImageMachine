@@ -1,11 +1,13 @@
 import json
 
-filename = "filename"
+filename = "adventurecore"
 processed_data = []
 with open('input_data/metadata/'+filename+'.json','r',encoding='utf-8') as f:
     data = json.loads(f.readline())
-    new_datum = {}
+    urls = []
     for datum in data:
+        new_datum = {}
+        img_url = ''
         if 'image_versions2' in datum:
             img_url = datum['image_versions2']['candidates'][0]['url']
         else:

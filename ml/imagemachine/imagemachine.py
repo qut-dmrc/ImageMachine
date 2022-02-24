@@ -390,8 +390,6 @@ class ImageMachine:
         # tree_vgg19 = clump(vgg19_predictions, metadata_out, "vgg19")
         x = self.dimensionality_reduce(np.array(vgg16_predictions))
         [self.tree['children'],root_centroid_img, root_centroid_img_dist] = self.cluster_files(x, np.array(list(self.image_to_features_map.keys()))) #first iteration
-        # print("root centroid")
-        # print(root_centroid_img, root_centroid_img_dist)
         self.tree['centroid'] = root_centroid_img
         self.tree['dist_to_centroid'] = root_centroid_img_dist
         self.tree['children'] = self.get_features_dataset_from_images(self.tree['children']) # subgroups
