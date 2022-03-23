@@ -230,6 +230,7 @@ class ImageMachine:
         writeJSONToFile(os.path.join(self.src_meta_parent,newmeta_filename), self.image_to_metadata_map, 'w')
         np.save(os.path.join(self.src_meta_parent,vgg16_filename), vgg16_predictions)
         np.save(os.path.join(self.src_meta_parent,vgg19_filename), vgg19_predictions)
+        np.savez(os.path.join(self.src_meta_parent,"img_to_feature.npz"), **self.image_to_features_map)
         return metadata, vgg16_predictions, vgg19_predictions
 
     def readFromZip(self, source_file, metadata, datasize=None):
@@ -377,11 +378,13 @@ class ImageMachine:
                 
         return list(childrenToProcess.values())
 
-    def clustering(self, vgg16_predictions, vgg19_predictions, metadata_out, datasize):
+    def clustering(self, vgg16_predictions, vgg19_predictions, metadata_out, datasize, img_to_feature_file=None):
         if not isinstance(vgg16_predictions,list):
             vgg16_predictions = np.load(os.path.join(self.src_meta_parent, vgg16_predictions))
         if not isinstance(vgg19_predictions,list):
             vgg19_predictions = np.load(os.path.join(self.src_meta_parent, vgg19_predictions))
+        if img_to_feature_file:
+            self.image_to_features_map = dict(np.load(os.path.join(self.src_meta_parent, img_to_feature_file)))
         if not isinstance(metadata_out,list):
             metadata_out = self.get_metadata(metadata_out, datasize)
         start_time = time.time()

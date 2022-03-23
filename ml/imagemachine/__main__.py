@@ -18,7 +18,8 @@ from .imagemachine import *
 @click.option('-clustering', is_flag=True)
 @click.option('-vgg16','--vgg16', nargs=1, default=None)
 @click.option('-vgg19','--vgg19', nargs=1, default=None)
-def main(config, img, _zip, metadata, fieldname, download, size, time, size_list, clustering, vgg16, vgg19, pca, kclusters):
+@click.option('-imgtofeat','--imgtofeat', nargs=1, default=None)
+def main(config, img, _zip, metadata, fieldname, download, size, time, size_list, clustering, vgg16, vgg19, imgtofeat, pca, kclusters):
     # TODO: check
     if config:
         with open(os.path.join(os.getcwd(),config)) as f:
@@ -45,7 +46,7 @@ def main(config, img, _zip, metadata, fieldname, download, size, time, size_list
             plt.ylabel('Execution time')
             plt.show()
     elif clustering:
-        im.clustering(vgg16, vgg19, metadata, size)
+        im.clustering(vgg16, vgg19, metadata, size, imgtofeat)
     else:
         im.process_images(img, _zip, metadata, fieldname, size)
     # # print(execution_time)
