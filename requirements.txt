@@ -1,12 +1,13 @@
 click==7.1.2
 DateTime==4.3
 fs==2.4.11
-Keras>=2.4.3
+Keras==2.4.3
 matplotlib==3.3.2
-numpy>=1.19.5
 pandas>=1.1.2
 Pillow>=8.3.2
 PyYAML>=5.4
 requests==2.26.0
 scipy>=1.4
-tensorflow>=2.5.1
+tensorflow==2.3.1
+scikit-learn==0.24.2
+
