@@ -23,3 +23,24 @@ def load_url(url, img_folder):
     if response:
         img = Image.open(BytesIO(response.content))
         img.save(img_folder+filename)
+
+def keys_exists(element, keys):
+        '''
+        Check if *keys (nested) exists in `element` (dict).
+        '''
+        if not isinstance(element, dict):
+            raise AttributeError('keys_exists() expects dict as first argument.')
+        if len(keys) == 0:
+            raise AttributeError('keys_exists() expects at least two arguments, one given.')
+        keys = keys.split('.')
+        _element = element
+        for key in keys:
+            try:
+                if key.isnumeric():
+                    key = int(key)
+                _element = _element[key]
+                if _element == None:
+                    return None
+            except KeyError:
+                return None
+        return _element

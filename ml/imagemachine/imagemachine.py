@@ -1,4 +1,5 @@
 import json
+import csv
 import os
 from fs.zipfs import ZipFS
 from PIL import Image
@@ -13,6 +14,7 @@ from io import BytesIO
 import logging
 import datetime
 import sys
+import re
 
 from tensorflow.python.keras.applications import vgg16
 
@@ -45,6 +47,9 @@ class ImageMachine:
         self.tree['children'] = {}
         self.image_to_features_map = {} # {'image1' -> [vgg16,vgg19], 'image2' -> [vgg16,vgg19]}
         self.image_to_metadata_map = {}
+        self.img_to_hashtags_map = {}
+        self.cluster_hashtag_map = {}
+        self.hashtags = []
 
     def download_images(self, src_meta, fieldname, dest_folder=None, size=None):
         """
@@ -304,7 +309,7 @@ class ImageMachine:
 
         kmeans = self.kmeans_clustering(dataset)
 
-        [groups,root_centroid_img, root_img_to_centroid_dist] = self.image_to_cluster_file(dataset, image_filenames, kmeans, True)
+        [groups,root_centroid_img, root_img_to_centroid_dist] = self.image_to_cluster_file(dataset, image_filenames, kmeans, root=True)
         return [groups,root_centroid_img, root_img_to_centroid_dist]
 
     def kmeans_clustering(self, dataset):
@@ -320,7 +325,10 @@ class ImageMachine:
         
         # for file, cluster in zip(image_filenames, kmeans.labels_): # Map the image_filename to its label
         if root:
-            total_centroid = [0] * len(kmeans.cluster_centers_[1])
+            total_centroid = [0] * len(kmeans.cluster_centers_[1]) # which cluster center doesnt matter, the length is the same for all centers
+            # root cluster maps to every single hashtag
+            for hashtag in self.hashtags:
+                self.cluster_hashtag_map["root"] = [1]*len(self.hashtags)
         for i in range(len(image_filenames)):
             file = image_filenames[i]
             cluster = int(kmeans.labels_[i])
@@ -354,9 +362,18 @@ class ImageMachine:
         return [groups, root_centroid_img, root_centroid_dist]
 
     # Gets image from fileName and returns the feature set of the image
-    def get_features_dataset_from_images(self, childrenToProcess):
+    def get_features_dataset_from_images(self, childrenToProcess, prevClusters="root"):
         for cluster_index in range(len(list(childrenToProcess.keys()))):
             cluster_index = list(childrenToProcess.keys())[cluster_index]
+            current_clusters_string = prevClusters+"-"+str(cluster_index)
+            cluster_hashtags_map = dict(zip(self.hashtags,[0]*len(self.hashtags)))
+            #adjacency map
+            for child in childrenToProcess[cluster_index]['data']:
+                child = child.replace('/','\\')    
+                hashtags = self.img_to_hashtags_map[child]
+                for hashtag in hashtags:
+                    cluster_hashtags_map[hashtag] = 1
+            self.cluster_hashtag_map[current_clusters_string] = list(cluster_hashtags_map.values())
             if len(childrenToProcess[cluster_index]['data']) <= self.k_clusters: # If less than K images, this is the end of the cluster branch (leaf)
                 # add leaves to children as nodes
                 for child in childrenToProcess[cluster_index]['data']:
@@ -416,7 +433,7 @@ class ImageMachine:
 
                 kmeans = self.kmeans_clustering(x)
                 [childrenToProcess[cluster_index]['children'],_,_] = self.image_to_cluster_file(x, image_filenames, kmeans)
-                childrenToProcess[cluster_index]['children'] = self.get_features_dataset_from_images(childrenToProcess[cluster_index]['children'])
+                childrenToProcess[cluster_index]['children'] = self.get_features_dataset_from_images(childrenToProcess[cluster_index]['children'],current_clusters_string)
                 
         return list(childrenToProcess.values())
 
@@ -426,6 +443,7 @@ class ImageMachine:
         if img_to_metadata_file:
             with open(os.path.join(self.src_meta_parent, img_to_metadata_file), 'r', encoding="utf8") as f:
                 self.image_to_metadata_map = json.load(f)
+        self.imgToHashtags() # create map from image to hashtags
         start_time = time.time()
         logging.info('{}:Clustering images'.format(datetime.datetime.now()))
         vgg16_predictions = [feature[0] for feature in self.image_to_features_map.values()]
@@ -438,7 +456,35 @@ class ImageMachine:
         exec_time = time.time()-start_time
         writeJSONToFile(os.path.join(self.dest_meta_parent,"clusters.json"), self.tree, 'w')
         logging.info('{}:Clusters saved to static folder. Clustering time: {}'.format(datetime.datetime.now(), exec_time))
+        self.convertClusterHashtagMapToCSV()
 
+    def convertClusterHashtagMapToCSV(self):
+        rows = []
+        clusters = list(self.cluster_hashtag_map.keys())
+        title = ["Hashtag"]+clusters
+        # print(title)
+        # print(list(self.cluster_hashtag_map.values()))
+        cluster_hashtag_map_transpose = list(map(list, zip(*list(self.cluster_hashtag_map.values()))))
+        rows= [title] + [[hashtag]+clusters for (hashtag, clusters) in zip(self.hashtags,cluster_hashtag_map_transpose)]
+        with open(os.path.join(self.dest_meta_parent,"adjacencymap.csv"),'w', encoding='utf-8', errors='ignore', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerows(rows)
+
+    ## adjacency map
+    def imgToHashtags(self):
+        hashtag_set = set()
+        for image,metadata in self.image_to_metadata_map.items():
+            node = metadata['node']
+            caption = keys_exists(node,"edge_media_to_caption.edges.0.node.text") or \
+            keys_exists(node,"caption.text") or \
+            keys_exists(node,"description") # get caption
+            caption = caption.replace('\n',' ') if caption != None else None
+            hashtags = re.findall(r"#(\w+)",caption) if caption != None else [] # retrieve hashtags
+            hashtag_set.update(hashtags)
+            self.img_to_hashtags_map[image] = hashtags
+        self.hashtags = list(hashtag_set)
+        self.hashtags.sort()
+            
     def predictImageInZip(self, _zipfolder, apath, metadata, node, vgg16_predictions, vgg19_predictions, isNode):
         with _zipfolder.open(apath,'rb') as image:
             ## Model Filters
@@ -455,7 +501,6 @@ class ImageMachine:
         # vgg16_predictions.append(output[0])
         # vgg19_predictions.append(output[1])
         self.image_to_features_map[os.path.join(_folder,apath)] = output
-        
         if isNode:
             # metadata.append(node)
             self.image_to_metadata_map[os.path.join(_folder,apath)] = node
