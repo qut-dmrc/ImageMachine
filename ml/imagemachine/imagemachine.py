@@ -15,15 +15,17 @@ import logging
 import datetime
 import sys
 import re
+# from pathlib import Path
+import matplotlib.pyplot as plt
 
-from tensorflow.python.keras.applications import vgg16
 
 # clustering and dimensionality reduction
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 import scipy.spatial.distance as dist
+from keras.preprocessing.image import load_img
 
-from .predict import predict_image
+from .predict import predict_image, generateHeatmap
 from .clump import *
 from .tools import *
 
@@ -47,9 +49,11 @@ class ImageMachine:
         self.tree['children'] = {}
         self.image_to_features_map = {} # {'image1' -> [vgg16,vgg19], 'image2' -> [vgg16,vgg19]}
         self.image_to_metadata_map = {}
+        self.image_to_heatmap_map = {}
         self.img_to_hashtags_map = {}
         self.cluster_hashtag_map = {}
         self.hashtags = []
+        self.hasMetadata = False
 
     def download_images(self, src_meta, fieldname, dest_folder=None, size=None):
         """
@@ -145,7 +149,8 @@ class ImageMachine:
         if src_meta.split('.')[-1] == 'json':
             logging.info('{}:Reading JSON metadata'.format(datetime.datetime.now()))
             with open(src_meta_abs, 'r', encoding="utf8") as f:
-                metadata = json.load(f)     
+                metadata = json.load(f)
+        self.hasMetadata = True     
         return metadata
 
     def CSVtoJSON(self, src_meta_abs, fieldname, src_media=None, datasize=None):
@@ -207,26 +212,27 @@ class ImageMachine:
         
         newmeta_filename = "imgtometadata.json"
         start_time = time.time()
+        thumbnail_folder = source_file+"_thumbnail"
+        if not os.path.isdir(thumbnail_folder):
+            os.mkdir(thumbnail_folder)
         ## metadata provided  
         if metadata and len(metadata) > 0:
             # follow the sequence in metadatas
             logging.info('{}:Looping through metadata...'.format(datetime.datetime.now()))
-            new_metadata = []
+            # new_metadata = []
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 for node in metadata:
-                    new_metadata.append(node)
-                    apath = node['_mediaPath'][0].replace('\\','/')
+                    # new_metadata.append(node)
+                    apath = parseFilePath(node['_mediaPath'][0])
                     apath = apath.split('/')[-1] # filename only
                     if os.path.exists(os.path.join(source_file,apath)):
                         # new_metadata.append(node)
                         # executor.submit(self.predictImage, source_file, apath, vgg16_predictions, vgg19_predictions)
-                        executor.submit(self.predictImage, source_file, apath, node, True)
+                        executor.submit(self.predictImage, source_file, apath, node, True, thumbnail_folder)
                         if datasize:
                             datasize -= 1
                             if datasize == 0:
                                 break
-            writeJSONToFile(os.path.join(self.dest_meta_parent,"metadata.json"), new_metadata, 'w')
-            writeJSONToFile(os.path.join(self.src_meta_parent,newmeta_filename), self.image_to_metadata_map, 'w')
         ## no metadata
         else:
             logging.info('{}:No metadata provided, creating new metadata...'.format(datetime.datetime.now()))
@@ -234,19 +240,21 @@ class ImageMachine:
                 for path, subdirs, files in os.walk(source_file):
                     for name in files:
                         folder = os.path.split(path)[-1]
-                        node = os.path.join(folder, name)
                         # self.appendToMetadata(node, metadata)
                         # executor.submit(self.predictImage, path, name, vgg16_predictions, vgg19_predictions)
-                        executor.submit(self.predictImage, path, name, node, False)
+                        executor.submit(self.predictImage, path, name, name, False, thumbnail_folder)
                         if datasize:
                             datasize -= 1
                             if datasize == 0:
                                 break
         exec_time = time.time() - start_time
         logging.info('{}:Finished processing images. Excecution time: {}'.format(datetime.datetime.now(), exec_time))
+        writeJSONToFile(os.path.join(self.dest_meta_parent,"metadata.json"), list(self.image_to_metadata_map.values()), 'w')
+        np.savez(os.path.join(self.src_meta_parent,"img_to_feature.npz"), **self.image_to_features_map)
+        logging.info('{}:Generating heatmap images. Excecution time: {}'.format(datetime.datetime.now(), exec_time))
+        self.generateHeatmapForImages(source_file)
         
         # metadata = list(self.image_to_metadata_map.values())
-        np.savez(os.path.join(self.src_meta_parent,"img_to_feature.npz"), **self.image_to_features_map)
 
     def readFromZip(self, source_file, metadata, datasize=None):
         logging.info('{}:Reading images from zip folder...'.format(datetime.datetime.now()))
@@ -265,7 +273,7 @@ class ImageMachine:
             new_metadata = []
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 for node in metadata:
-                    apath = node['_mediaPath'][0].replace('\\','/')
+                    apath = parseFilePath(node['_mediaPath'][0])
                     if archive.exists(apath):
                         # new_metadata.append(node)
                         executor.submit(self.predictImageInZip, archive, apath, new_metadata, node, vgg16_predictions, vgg19_predictions, True)
@@ -366,14 +374,15 @@ class ImageMachine:
         for cluster_index in range(len(list(childrenToProcess.keys()))):
             cluster_index = list(childrenToProcess.keys())[cluster_index]
             current_clusters_string = prevClusters+"-"+str(cluster_index)
-            cluster_hashtags_map = dict(zip(self.hashtags,[0]*len(self.hashtags)))
-            #adjacency map
-            for child in childrenToProcess[cluster_index]['data']:
-                child = child.replace('/','\\')    
-                hashtags = self.img_to_hashtags_map[child]
-                for hashtag in hashtags:
-                    cluster_hashtags_map[hashtag] = 1
-            self.cluster_hashtag_map[current_clusters_string] = list(cluster_hashtags_map.values())
+            if self.hasMetadata: # only generate cluster hashtag map when metadata is provided
+                cluster_hashtags_map = dict(zip(self.hashtags,[0]*len(self.hashtags)))
+                #adjacency map
+                for child in childrenToProcess[cluster_index]['data']:
+                    # child = child.replace('/','\\')    
+                    hashtags = self.img_to_hashtags_map[child]
+                    for hashtag in hashtags:
+                        cluster_hashtags_map[hashtag] = 1
+                self.cluster_hashtag_map[current_clusters_string] = list(cluster_hashtags_map.values())
             if len(childrenToProcess[cluster_index]['data']) <= self.k_clusters: # If less than K images, this is the end of the cluster branch (leaf)
                 # add leaves to children as nodes
                 for child in childrenToProcess[cluster_index]['data']:
@@ -393,7 +402,8 @@ class ImageMachine:
                 # fileData = fileHandle.read()
                 # files = fileData.split("\n")[:-1]
                 files = childrenToProcess[cluster_index]['data']
-                data = { file: self.image_to_features_map[file][0] for file in files }
+                # data = { file: self.image_to_features_map[file][0] for file in files }
+                data = { file: self.image_to_features_map[file] for file in files }
                 
                 image_filenames = np.array(list(data.keys()))
                 feature_list = np.array(list(data.values()))
@@ -443,11 +453,13 @@ class ImageMachine:
         if img_to_metadata_file:
             with open(os.path.join(self.src_meta_parent, img_to_metadata_file), 'r', encoding="utf8") as f:
                 self.image_to_metadata_map = json.load(f)
-        self.imgToHashtags() # create map from image to hashtags
+                self.hasMetadata = True
+        if self.hasMetadata: # only if metadata is provided
+            self.imgToHashtags() # create map from image to hashtags
         start_time = time.time()
         logging.info('{}:Clustering images'.format(datetime.datetime.now()))
-        vgg16_predictions = [feature[0] for feature in self.image_to_features_map.values()]
-        vgg19_predictions = [feature[1] for feature in self.image_to_features_map.values()]
+        vgg16_predictions = list(self.image_to_features_map.values())
+        # vgg19_predictions = [feature[1] for feature in self.image_to_features_map.values()]
         x = self.dimensionality_reduce(np.array(vgg16_predictions)) #(m, 4096)-> (m,PCA-Value)
         [self.tree['children'],root_centroid_img, root_centroid_img_dist] = self.cluster_files(x, np.array(list(self.image_to_features_map.keys()))) #first iteration
         self.tree['centroid'] = root_centroid_img
@@ -456,8 +468,18 @@ class ImageMachine:
         exec_time = time.time()-start_time
         writeJSONToFile(os.path.join(self.dest_meta_parent,"clusters.json"), self.tree, 'w')
         logging.info('{}:Clusters saved to static folder. Clustering time: {}'.format(datetime.datetime.now(), exec_time))
-        self.convertClusterHashtagMapToCSV()
+        if self.hasMetadata: # only if metadata is provided
+            self.convertClusterHashtagMapToCSV()
 
+    def generateHeatmapForImages(self, source_file):
+        explainer_folder = source_file+"_explainer"
+        if not os.path.isdir(explainer_folder):
+            os.mkdir(explainer_folder)
+        for path, subdirs, files in os.walk(source_file):
+            for name in files:
+                self.storeGradCam(path, name, explainer_folder)
+                # self.generateThumbnail(path, name, thumbnail_folder)
+    
     def convertClusterHashtagMapToCSV(self):
         rows = []
         clusters = list(self.cluster_hashtag_map.keys())
@@ -480,6 +502,7 @@ class ImageMachine:
             keys_exists(node,"description") # get caption
             caption = caption.replace('\n',' ') if caption != None else None
             hashtags = re.findall(r"#(\w+)",caption) if caption != None else [] # retrieve hashtags
+            hashtags = [str(hashtag).lower() for hashtag in hashtags]
             hashtag_set.update(hashtags)
             self.img_to_hashtags_map[image] = hashtags
         self.hashtags = list(hashtag_set)
@@ -490,26 +513,40 @@ class ImageMachine:
             ## Model Filters
             output = predict_image(image)
             vgg16_predictions.append(output[0])
-            vgg19_predictions.append(output[1])
+            # vgg19_predictions.append(output[1])
             if isNode:
                 metadata.append(node)
             else:
                 self.appendToMetadata(node, metadata)
 
-    def predictImage(self, _folder, apath, node, isNode):
+    def predictImage(self, _folder, apath, node, isNode, thumbnail_folder):
         output = predict_image(os.path.join(_folder,apath))
+        filepath = parseFilePath(os.path.join(_folder,apath)) #input_data/images/folder/img1.jpg
+
+        # getting original aspect ratio
+        img = Image.open(os.path.join(_folder,apath))
+        w, h = img.size
+        # generating thumbnail
+        img.thumbnail((50,50))
+        img.save(os.path.join(thumbnail_folder, apath))
+        img.close()
+
         # vgg16_predictions.append(output[0])
         # vgg19_predictions.append(output[1])
-        self.image_to_features_map[os.path.join(_folder,apath)] = output
+        self.image_to_features_map[filepath] = output[0]
         if isNode:
             # metadata.append(node)
-            self.image_to_metadata_map[os.path.join(_folder,apath)] = node
+            node['node']['ori_width'] = w
+            node['node']['ori_height'] = h
+            self.image_to_metadata_map[filepath] = node
         else:
             # self.appendToMetadata(node, metadata)
             filemeta = {}
             filemeta['node'] = {}
-            filemeta['_mediaPath'] = [node]
-            self.image_to_metadata_map[os.path.join(_folder,apath)] = filemeta
+            filemeta['node']['ori_width'] = w
+            filemeta['node']['ori_height'] = h
+            filemeta['_mediaPath'] = [filepath]
+            self.image_to_metadata_map[filepath] = filemeta
 
     def predictImageOnline(self, img, metadata, node, vgg16_predictions, vgg19_predictions):
         output = predict_image(img)
@@ -517,17 +554,39 @@ class ImageMachine:
         vgg19_predictions.append(output[1])
         metadata.append(node)
 
-    @staticmethod
-    def appendToMetadata(apath, metadata, node_meta=None, url=None):
-        _mediaPath = apath.replace('/','\\')
-        # add to metadata
-        filemeta = {}
-        if not node_meta:
-            node_meta = {}
-        # img = Image.open(os.path.join(dirname,outfile))
-        # node['byte_size'] = os.path.getsize(filepath)
-        filemeta['node'] = node_meta
-        filemeta['_mediaPath'] = [_mediaPath]
-        if url:
-            filemeta['_mediaPath'] = [url]
-        metadata.append(filemeta)  
+    def storeGradCam(self, folder, ori_img_filename, dest_folder):
+        rescaling = 224
+        # Plotting
+        ori_img = load_img(os.path.join(folder, ori_img_filename), target_size=(rescaling,rescaling), interpolation='bicubic')
+        # ori_img = Image.open(os.path.join(folder, ori_img_filename))
+        heatmap = generateHeatmap(os.path.join(folder, ori_img_filename))
+        plt.figure(figsize=(15,15))
+        plt.axis("off")
+        plt.imshow(ori_img)
+        plt.imshow(heatmap.reshape(224,224,3), alpha=0.5) # Overlap with nice colouring
+        plt.savefig(os.path.join(dest_folder, ori_img_filename), bbox_inches='tight')
+        plt.clf()
+        plt.close()
+        # blendedImg = generateHeatmap(os.path.join(folder, ori_img_filename))
+        # blendedImg.save(os.path.join(dest_folder, ori_img_filename)) 
+
+    # def generateThumbnail(self, path, name, dest_folder):
+    #     img = Image.open(os.path.join(path, name))
+    #     img.thumbnail((50,50))
+    #     img.save(os.path.join(dest_folder, name))
+    #     img.close()
+
+    # @staticmethod
+    # def appendToMetadata(apath, metadata, node_meta=None, url=None):
+    #     _mediaPath = apath.replace('/','\\')
+    #     # add to metadata
+    #     filemeta = {}
+    #     if not node_meta:
+    #         node_meta = {}
+    #     # img = Image.open(os.path.join(dirname,outfile))
+    #     # node['byte_size'] = os.path.getsize(filepath)
+    #     filemeta['node'] = node_meta
+    #     filemeta['_mediaPath'] = [_mediaPath]
+    #     if url:
+    #         filemeta['_mediaPath'] = [url]
+    #     metadata.append(filemeta)  

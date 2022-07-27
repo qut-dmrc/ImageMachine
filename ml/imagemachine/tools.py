@@ -3,6 +3,7 @@ import concurrent.futures
 import requests
 from PIL import Image
 from io import BytesIO
+import re
 
 def writeJSONToFile(filename, data, mode):
     data = json.dumps(data)
@@ -44,3 +45,6 @@ def keys_exists(element, keys):
             except KeyError:
                 return None
         return _element
+
+def parseFilePath(filePath):
+    return re.sub(r"\\+",'/',filePath)
