@@ -59,6 +59,7 @@ def imgToHashtags(metadata):
         keys_exists(node,"description") # get caption
         caption = caption.replace('\n',' ') if caption != None else None
         hashtags = re.findall(r"#(\w+)",caption) if caption != None else [] # retrieve hashtags
+        hashtags = [str(hashtag).lower() for hashtag in hashtags]
         img_to_hashtags_map[datum['_mediaPath'][0]] = hashtags
 
 imgToHashtags(metadata) # img to tags
