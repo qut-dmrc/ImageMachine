@@ -3,7 +3,6 @@ import csv
 import os
 from fs.zipfs import ZipFS
 from PIL import Image
-from pprint import pformat
 import pandas as pd
 import numpy as np
 import concurrent.futures
@@ -249,7 +248,7 @@ class ImageMachine:
                                 break
         exec_time = time.time() - start_time
         logging.info('{}:Finished processing images. Excecution time: {}'.format(datetime.datetime.now(), exec_time))
-        writeJSONToFile(os.path.join(self.dest_meta_parent,"metadata.json"), list(self.image_to_metadata_map.values()), 'w')
+        self.writeMetadata()
         np.savez(os.path.join(self.src_meta_parent,"img_to_feature.npz"), **self.image_to_features_map)
         logging.info('{}:Generating heatmap images. Excecution time: {}'.format(datetime.datetime.now(), exec_time))
         self.generateHeatmapForImages(source_file)
@@ -306,7 +305,7 @@ class ImageMachine:
 
     def dimensionality_reduce(self, features_list):
         # Dimensionality reduction using Pricipal Component Analysis
-        pca = PCA(n_components=self.pca_dimensions, random_state=self.random_seed)
+        pca = PCA(n_components=self.pca_dimensions, random_state=self.random_seed) # remove random seed
         pca.fit(features_list) # Find out best components to use
         x = pca.transform(features_list) # Transform the dataset to those components
     
@@ -589,4 +588,18 @@ class ImageMachine:
     #     filemeta['_mediaPath'] = [_mediaPath]
     #     if url:
     #         filemeta['_mediaPath'] = [url]
-    #     metadata.append(filemeta)  
+    #     metadata.append(filemeta) 
+
+
+    def writeMetadata(self):
+        metadata = list(self.image_to_metadata_map.values())
+        writeJSONToFile(os.path.join(self.dest_meta_parent,"metadata.json"), metadata, 'w')
+        csv_data = JSONtoCSV(metadata)
+        writeCSVToFile(os.path.join(self.dest_meta_parent,"metadata.csv"), csv_data, 'w')
+
+
+
+    
+
+
+

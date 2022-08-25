@@ -1,4 +1,5 @@
 import json
+import csv
 import concurrent.futures
 import requests
 from PIL import Image
@@ -9,7 +10,55 @@ def writeJSONToFile(filename, data, mode):
     data = json.dumps(data)
     f = open(filename, mode)
     f.write(data)
+    f.close()
 
+def writeCSVToFile(filename, data, mode):
+    f = open(filename, mode, encoding='utf-8', newline='')
+    csv_file = csv.writer(f)
+    csv_file.writerows(data)
+    f.close()
+
+def flatten_data(y):
+    out = {}
+
+    def flatten(x, name=''):
+        if type(x) is dict:
+            for a in x:
+                flatten(x[a], name + a + '_')
+        elif type(x) is list:
+            for a in x:
+                flatten(a, name + '_')
+        else:
+            if name[:-1] in out.keys():
+                if type(out[name[:-1]]) is not list:
+                    out[name[:-1]] = [out[name[:-1]]]
+                out[name[:-1]].append(str(x))
+            else:
+                out[name[:-1]] = x
+
+    flatten(y)
+    return out
+
+def JSONtoCSV(metadata):
+    map = {}
+    titles = list(flatten_data(metadata[0]).keys()) # get the col titles
+    for idx, datum in enumerate(metadata):
+        flattened = flatten_data(datum)
+        keys = list(flattened.keys())
+        for key in keys:
+            if key not in map.keys():
+                prev_rows = ['']*len(metadata) # create an empty list for a new key that wasn't included in previous row 
+                map[key] = prev_rows
+            map[key][idx] = flattened[key]
+
+    title = list(map.keys())
+    values = list(map.values())
+    rows = []
+    rows.append(title)
+    for i in range(len(metadata)):
+        rows.append([value[i] for value in values])
+    return rows
+ 
 '''
 Images is a nunpy array of urls of which the images are stored
 '''
