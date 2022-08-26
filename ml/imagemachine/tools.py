@@ -21,20 +21,20 @@ def writeCSVToFile(filename, data, mode):
 def flatten_data(y):
     out = {}
 
-    def flatten(x, name=''):
+    def flatten(x, name='', isList=False):
         if type(x) is dict:
             for a in x:
-                flatten(x[a], name + a + '_')
+                flatten(x[a], name + a + '_', isList)
         elif type(x) is list:
             for a in x:
-                flatten(a, name + '_')
+                flatten(a, name + '_', isList=True)
         else:
             if name[:-1] in out.keys():
                 if type(out[name[:-1]]) is not list:
-                    out[name[:-1]] = [out[name[:-1]]]
+                    out[name[:-1]] = [str(out[name[:-1]])]
                 out[name[:-1]].append(str(x))
             else:
-                out[name[:-1]] = x
+                out[name[:-1]] = [str(x)] if isList else x
 
     flatten(y)
     return out
