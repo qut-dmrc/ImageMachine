@@ -51,6 +51,7 @@ class ImageMachine:
         self.image_to_heatmap_map = {}
         self.img_to_hashtags_map = {}
         self.cluster_hashtag_map = {}
+        self.hashtag_by_hashtag_matrix = {}
         self.hashtags = []
         self.hasMetadata = False
 
@@ -491,6 +492,28 @@ class ImageMachine:
             writer = csv.writer(f)
             writer.writerows(rows)
 
+    def addHashtagsToMap(self, post_hashtags):
+        # current_hashtag_length = len(hashtag_by_hashtag_matrix.keys())
+        for idx, hashtag1 in enumerate(post_hashtags):
+            if hashtag1 not in self.hashtag_by_hashtag_matrix.keys():
+                prev_rows = [0]*(len(self.hashtag_by_hashtag_matrix.keys())+1)
+                self.hashtag_by_hashtag_matrix[hashtag1] = prev_rows
+            hashtag1_idx_in_map = list(self.hashtag_by_hashtag_matrix.keys()).index(hashtag1)
+            self.hashtag_by_hashtag_matrix[hashtag1][hashtag1_idx_in_map] += 1 # add one on diagonal line
+            for hashtag2_idx in range(idx+1, len(post_hashtags)):
+                hashtag2 = post_hashtags[hashtag2_idx]
+                if hashtag2 not in self.hashtag_by_hashtag_matrix.keys():
+                    prev_rows = [0]*(len(self.hashtag_by_hashtag_matrix.keys())+1)
+                    self.hashtag_by_hashtag_matrix[hashtag2] = prev_rows
+                hashtag2_idx_in_map = list(self.hashtag_by_hashtag_matrix.keys()).index(hashtag2)
+                # check if hashtag2 index is within the range
+                if hashtag2_idx_in_map >= len(self.hashtag_by_hashtag_matrix[hashtag1]):
+                    self.hashtag_by_hashtag_matrix[hashtag1] += [0]*(hashtag2_idx_in_map-len(self.hashtag_by_hashtag_matrix[hashtag1])+1)
+                if hashtag1_idx_in_map >= len(self.hashtag_by_hashtag_matrix[hashtag2]):
+                    self.hashtag_by_hashtag_matrix[hashtag2] += [0]*(hashtag1_idx_in_map-len(self.hashtag_by_hashtag_matrix[hashtag2])+1)
+                self.hashtag_by_hashtag_matrix[hashtag1][hashtag2_idx_in_map] += 1 #+1 for every link from hashtag1
+                self.hashtag_by_hashtag_matrix[hashtag2][hashtag1_idx_in_map] += 1 #+1 for every link to hashtag1
+
     ## adjacency map
     def imgToHashtags(self):
         hashtag_set = set()
@@ -506,6 +529,22 @@ class ImageMachine:
             self.img_to_hashtags_map[image] = hashtags
         self.hashtags = list(hashtag_set)
         self.hashtags.sort()
+        #add hashtag to hashtag-by-hashtag matrix
+        for hashtags in list(self.img_to_hashtags_map.values()):
+            self.addHashtagsToMap(hashtags)
+        row_length = [len(row) for row in list(self.hashtag_by_hashtag_matrix.values())]
+        max_row_length = np.max(row_length)
+        # hashtag_by_hashtag_matrix_values= [row + [0]*(max_row_length-len(row)) for row in list(hashtag_by_hashtag_matrix.values())]
+        rows = []
+        rows.append(['']+list(self.hashtag_by_hashtag_matrix.keys()))
+        for idx, hashtag in enumerate(list(self.hashtag_by_hashtag_matrix.keys())):
+            matrix_cells = self.hashtag_by_hashtag_matrix[hashtag]
+            row = [hashtag] + matrix_cells + [0]*(max_row_length-len(matrix_cells))
+            rows.append(row)
+        writeCSVToFile(os.path.join(self.dest_meta_parent,"hashtag_by_hashtag_matrix.csv"), rows, 'w')
+        # with open(,'w', encoding='utf-8', errors='ignore', newline='') as f:
+        #     writer = csv.writer(f)
+        #     writer.writerows(rows)
             
     def predictImageInZip(self, _zipfolder, apath, metadata, node, vgg16_predictions, vgg19_predictions, isNode):
         with _zipfolder.open(apath,'rb') as image:
