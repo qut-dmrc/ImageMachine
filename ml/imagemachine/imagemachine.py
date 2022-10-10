@@ -483,12 +483,12 @@ class ImageMachine:
     def convertClusterHashtagMapToCSV(self):
         rows = []
         clusters = list(self.cluster_hashtag_map.keys())
-        title = ["Hashtag"]+clusters
+        title = ["ID"]+clusters
         # print(title)
         # print(list(self.cluster_hashtag_map.values()))
         cluster_hashtag_map_transpose = list(map(list, zip(*list(self.cluster_hashtag_map.values()))))
         rows= [title] + [[hashtag]+clusters for (hashtag, clusters) in zip(self.hashtags,cluster_hashtag_map_transpose)]
-        with open(os.path.join(self.dest_meta_parent,"adjacencymap.csv"),'w', encoding='utf-8', errors='ignore', newline='') as f:
+        with open(os.path.join(self.dest_meta_parent,"nodelist.csv"),'w', encoding='utf-8', errors='ignore', newline='') as f:
             writer = csv.writer(f)
             writer.writerows(rows)
 

@@ -3,6 +3,11 @@ import json
 import csv
 import re
 import numpy as np
+import pandas as pd
+from keras.preprocessing.image import load_img
+from heatmap import *
+import matplotlib.pyplot as plt
+from PIL import Image
 
 def keys_exists(element, keys):
     '''
@@ -21,7 +26,7 @@ def keys_exists(element, keys):
             if type(_element) == str:
                 return None
             _element = _element[key]
-            if _element == None:
+            if _element == None or (not isinstance(_element,dict) and _element.lower() =='nan'):
                 return None
         except KeyError:
             return None
@@ -60,6 +65,98 @@ def imgToHashtags(metadata):
         hashtags = [str(hashtag).lower() for hashtag in hashtags]
 
         img_to_hashtags_map[datum['_mediaPath'][0]] = hashtags
+
+def getAncestorClusters(prevClusters, node, img_to_cluster_map, all_clusters):
+    if node["name"]=='leaf':
+        image = node['centroid'].split('/')[-1]
+        image = image.split('\\')[-1]
+        img_to_cluster_map[image] = prevClusters 
+        return
+    if prevClusters!="":
+        currentCluster = prevClusters.split(',')[-1]+'-'+str(node['name'])
+        clustersString = prevClusters+","+currentCluster
+    else:
+        currentCluster = node['name']
+        clustersString = currentCluster
+    all_clusters.append(currentCluster)
+    for child in node["children"]:
+        getAncestorClusters(clustersString, child, img_to_cluster_map,all_clusters)
+
+def storeGradCam(folder, ori_img_filename, dest_folder):
+    rescaling = 224
+    # Plotting
+    ori_img = load_img(os.path.join(folder, ori_img_filename), target_size=(rescaling,rescaling), interpolation='bicubic')
+    # ori_img = Image.open(os.path.join(folder, ori_img_filename))
+    heatmap = generateHeatmap(os.path.join(folder, ori_img_filename))
+    plt.figure(figsize=(15,15))
+    plt.axis("off")
+    plt.imshow(ori_img)
+    plt.imshow(heatmap.reshape(224,224,3), alpha=0.5) # Overlap with nice colouring
+    plt.savefig(os.path.join(dest_folder, ori_img_filename), bbox_inches='tight')
+    plt.clf()
+    plt.close()
+
+def generateThumbnails(folder, apath, dest_folder):
+    img = Image.open(os.path.join(folder,apath))
+    img.thumbnail((50,50))
+    img.save(os.path.join(dest_folder, apath))
+    img.close()
+
+def generateHeatmapImages(source_file):
+    source_file = os.listdir(os.path.join(os.getcwd(),source_file))[0]
+    source_file = os.path.join("input_data/images",source_file)
+    explainer_folder = source_file+"_explainer"
+    thumbnail_folder = source_file+"_thumbnail"
+    if not os.path.isdir(thumbnail_folder):
+            os.mkdir(thumbnail_folder)
+    if not os.path.isdir(explainer_folder):
+        os.mkdir(explainer_folder)
+    for path, subdirs, files in os.walk(source_file):
+        for name in files:
+            storeGradCam(path, name, explainer_folder)
+            generateThumbnails(path,name,thumbnail_folder)
+
+def generateClusterMap():
+    with open("clusters.json",'r', encoding="utf8") as f:
+        cluster = json.load(f)
+    with open("metadata.json",'r', encoding="utf8") as f:
+        metadata = json.load(f)
+
+    img_to_cluster_map = {}
+    img_to_hashtags_map = {}
+    all_clusters = []
+    adjacency_matrix = {}
+
+    imgToHashtags(metadata, img_to_hashtags_map) # img to tags
+    getAncestorClusters("", cluster, img_to_cluster_map,all_clusters) # img to clusters
+    ## Create an empty cluster dict for each hashtag
+    clusterSet = list(set(all_clusters))
+    clusterSet.sort()
+    clusterDictInit = dict(zip(clusterSet,[0]*len(clusterSet)))
+    # adjacency matrix
+    for (img,hashtags) in img_to_hashtags_map.items():
+        if img not in img_to_cluster_map:
+            continue
+        img_clusters = img_to_cluster_map[img].split(',')
+        for hashtag in hashtags:
+            if hashtag not in adjacency_matrix:
+                adjacency_matrix[hashtag] = dict(zip(clusterSet,[0]*len(clusterSet))) # use dict instead of variable to avoid referening the same object
+            for cluster in img_clusters:
+                adjacency_matrix[hashtag][cluster] = 1
+
+    ## convert adjacency map to csv
+    rows = []
+    rows.append(["ID"]+list(clusterDictInit.keys()))
+    for hashtag,clusters in adjacency_matrix.items():
+        row = [hashtag]+list(clusters.values())
+        rows.append(row)
+
+    with open("nodelist.csv",'w', encoding='utf-8', errors='ignore', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerows(rows)
+
+def generateHashtagToHashtag():
+    hashtag_by_hashtag_matrix = {}
     #add hashtag to hashtag-by-hashtag matrix
     for hashtags in list(img_to_hashtags_map.values()):
         addHashtagsToMap(hashtags)
@@ -76,15 +173,25 @@ def imgToHashtags(metadata):
         writer = csv.writer(f)
         writer.writerows(rows)
 
-root_folder = "datasets"
-for _,dirs,_ in os.walk(root_folder):
-    os.chdir(os.path.join(os.getcwd(),"datasets"))
-    for _dir in dirs:
-        print(_dir)
-        img_to_hashtags_map = {}
-        hashtag_by_hashtag_matrix = {}
-        os.chdir(os.path.join(".",_dir))
-        with open("metadata.json",'r', encoding="utf8") as f:
-            metadata = json.load(f)
-        imgToHashtags(metadata) # img to tags
-        os.chdir('../')
+root = os.getcwd()
+for _dir in os.listdir(root):
+    if os.path.isfile(os.path.join(root,_dir)):
+        continue
+    print("Processing", os.path.join(root,_dir))
+    os.chdir(os.path.join(root,_dir))
+    generateClusterMap()
+    generateHashtagToHashtag()
+    # generateHeatmapImages("input_data/images")
+
+# root_folder = "datasets"
+# for _,dirs,_ in os.walk(root_folder):
+#     os.chdir(os.path.join(os.getcwd(),"datasets"))
+#     for _dir in dirs:
+#         print(_dir)
+#         img_to_hashtags_map = {}
+#         hashtag_by_hashtag_matrix = {}
+#         os.chdir(os.path.join(".",_dir))
+#         with open("metadata.json",'r', encoding="utf8") as f:
+#             metadata = json.load(f)
+#         imgToHashtags(metadata) # img to tags
+#         os.chdir('../')
