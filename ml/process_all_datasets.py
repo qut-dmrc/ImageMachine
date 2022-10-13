@@ -5,9 +5,24 @@ import re
 import numpy as np
 import pandas as pd
 from keras.preprocessing.image import load_img
-from heatmap import *
-import matplotlib.pyplot as plt
-from PIL import Image
+import scipy.spatial.distance as dist
+
+# from heatmap import *
+# import matplotlib.pyplot as plt
+# from PIL import Image
+
+def write_to_file(data_dict, col_names, a1_cell, output_fn):
+    rows = []
+    rows.append([a1_cell]+col_names)
+    for (key,value) in data_dict.items():
+        if type(value) == dict:
+            value = list(value.values())
+        row = [key]+value
+        rows.append(row)
+    # print(rows)
+    with open(output_fn,'w', encoding='utf-8', errors='ignore', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerows(rows)
 
 def keys_exists(element, keys):
     '''
@@ -33,43 +48,58 @@ def keys_exists(element, keys):
     return _element
 
 def addHashtagsToMap(post_hashtags):
-    # current_hashtag_length = len(hashtag_by_hashtag_matrix.keys())
+    # current_hashtag_length = len(hashtags_hashtags_matrix.keys())
     for idx, hashtag1 in enumerate(post_hashtags):
-        if hashtag1 not in hashtag_by_hashtag_matrix.keys():
-            prev_rows = [0]*(len(hashtag_by_hashtag_matrix.keys())+1)
-            hashtag_by_hashtag_matrix[hashtag1] = prev_rows
-        hashtag1_idx_in_map = list(hashtag_by_hashtag_matrix.keys()).index(hashtag1)
-        hashtag_by_hashtag_matrix[hashtag1][hashtag1_idx_in_map] += 1 # add one on diagonal line
+        if hashtag1 not in hashtags_hashtags_matrix.keys():
+            prev_rows = [0]*(len(hashtags_hashtags_matrix.keys())+1)
+            hashtags_hashtags_matrix[hashtag1] = prev_rows
+        hashtag1_idx_in_map = list(hashtags_hashtags_matrix.keys()).index(hashtag1)
+        hashtags_hashtags_matrix[hashtag1][hashtag1_idx_in_map] += 1 # add one on diagonal line
         for hashtag2_idx in range(idx+1, len(post_hashtags)):
             hashtag2 = post_hashtags[hashtag2_idx]
-            if hashtag2 not in hashtag_by_hashtag_matrix.keys():
-                prev_rows = [0]*(len(hashtag_by_hashtag_matrix.keys())+1)
-                hashtag_by_hashtag_matrix[hashtag2] = prev_rows
-            hashtag2_idx_in_map = list(hashtag_by_hashtag_matrix.keys()).index(hashtag2)
+            if hashtag2 not in hashtags_hashtags_matrix.keys():
+                prev_rows = [0]*(len(hashtags_hashtags_matrix.keys())+1)
+                hashtags_hashtags_matrix[hashtag2] = prev_rows
+            hashtag2_idx_in_map = list(hashtags_hashtags_matrix.keys()).index(hashtag2)
             # check if hashtag2 index is within the range
-            if hashtag2_idx_in_map >= len(hashtag_by_hashtag_matrix[hashtag1]):
-                hashtag_by_hashtag_matrix[hashtag1] += [0]*(hashtag2_idx_in_map-len(hashtag_by_hashtag_matrix[hashtag1])+1)
-            if hashtag1_idx_in_map >= len(hashtag_by_hashtag_matrix[hashtag2]):
-                hashtag_by_hashtag_matrix[hashtag2] += [0]*(hashtag1_idx_in_map-len(hashtag_by_hashtag_matrix[hashtag2])+1)
-            hashtag_by_hashtag_matrix[hashtag1][hashtag2_idx_in_map] += 1 #+1 for every link from hashtag1
-            hashtag_by_hashtag_matrix[hashtag2][hashtag1_idx_in_map] += 1 #+1 for every link to hashtag1
+            if hashtag2_idx_in_map >= len(hashtags_hashtags_matrix[hashtag1]):
+                hashtags_hashtags_matrix[hashtag1] += [0]*(hashtag2_idx_in_map-len(hashtags_hashtags_matrix[hashtag1])+1)
+            if hashtag1_idx_in_map >= len(hashtags_hashtags_matrix[hashtag2]):
+                hashtags_hashtags_matrix[hashtag2] += [0]*(hashtag1_idx_in_map-len(hashtags_hashtags_matrix[hashtag2])+1)
+            hashtags_hashtags_matrix[hashtag1][hashtag2_idx_in_map] += 1 #+1 for every link from hashtag1
+            hashtags_hashtags_matrix[hashtag2][hashtag1_idx_in_map] += 1 #+1 for every link to hashtag1
 
-def imgToHashtags(metadata):
+def imgToMetadata(metadata):
     for datum in metadata:
         node = datum['node']
-        caption = keys_exists(node,"edge_media_to_caption.edges.0.node.text") or \
-        keys_exists(node,"caption.text") or \
-        keys_exists(node,"description") # get caption
-        caption = caption.replace('\n',' ') if caption != None else None
-        hashtags = re.findall(r"#(\w+)",caption) if caption != None else [] # retrieve hashtags
-        hashtags = [str(hashtag).lower() for hashtag in hashtags]
+        img_path = datum['_mediaPath'][0].split('/')[-1].split('.')[0]+'.jpg'
+        # img to hashtags map 1:m
+        hashtags = getMetaHashtags(node)
+        img_to_hashtags_map[img_path] = hashtags
+        # img to user map 1:1
+        user = getMetaUser(node)
+        img_to_user_map[img_path] = user
+        # user to hashtags 1(user):m(images):m(hashtags)
+        if user not in list(user_to_hashtags_map.keys()):
+            user_to_hashtags_map[user] = []
+        user_to_hashtags_map[user]+=hashtags
 
-        img_to_hashtags_map[datum['_mediaPath'][0]] = hashtags
+def getMetaHashtags(node):
+    caption = keys_exists(node,"edge_media_to_caption.edges.0.node.text") or \
+    keys_exists(node,"caption.text") or \
+    keys_exists(node,"description") # get caption
+    caption = caption.replace('\n',' ') if caption != None else None
+    hashtags = re.findall(r"#(\w+)",caption) if caption != None else [] # retrieve hashtags
+    hashtags = [str(hashtag).lower() for hashtag in hashtags]
+    return hashtags
+
+def getMetaUser(node):
+    return keys_exists(node,"user.username")
 
 def getAncestorClusters(prevClusters, node, img_to_cluster_map, all_clusters):
     if node["name"]=='leaf':
         image = node['centroid'].split('/')[-1]
-        image = image.split('\\')[-1]
+        image = image.split('\\')[-1].split('.')[0]+".jpg"
         img_to_cluster_map[image] = prevClusters 
         return
     if prevClusters!="":
@@ -116,82 +146,183 @@ def generateHeatmapImages(source_file):
             storeGradCam(path, name, explainer_folder)
             generateThumbnails(path,name,thumbnail_folder)
 
-def generateClusterMap():
-    with open("clusters.json",'r', encoding="utf8") as f:
-        cluster = json.load(f)
-    with open("metadata.json",'r', encoding="utf8") as f:
-        metadata = json.load(f)
-
-    img_to_cluster_map = {}
-    img_to_hashtags_map = {}
+def generateClusterNodelist(cluster):
+    # img_to_cluster_map, cluster_set
     all_clusters = []
-    adjacency_matrix = {}
-
-    imgToHashtags(metadata, img_to_hashtags_map) # img to tags
-    getAncestorClusters("", cluster, img_to_cluster_map,all_clusters) # img to clusters
-    ## Create an empty cluster dict for each hashtag
+    getAncestorClusters("", cluster, img_to_cluster_map,all_clusters) 
     clusterSet = list(set(all_clusters))
     clusterSet.sort()
-    clusterDictInit = dict(zip(clusterSet,[0]*len(clusterSet)))
-    # adjacency matrix
-    for (img,hashtags) in img_to_hashtags_map.items():
+    # hashtags_cluster matrix
+    for img in img_to_hashtags_map.keys(): # loop through every image, img_to_user_map.keys() is fine too
         if img not in img_to_cluster_map:
             continue
+        # clusters info
         img_clusters = img_to_cluster_map[img].split(',')
+        
+        #hashtags_cluster
+        hashtags = img_to_hashtags_map[img]
         for hashtag in hashtags:
-            if hashtag not in adjacency_matrix:
-                adjacency_matrix[hashtag] = dict(zip(clusterSet,[0]*len(clusterSet))) # use dict instead of variable to avoid referening the same object
+            if hashtag not in hashtags_clusters_nodelist:
+                hashtags_clusters_nodelist[hashtag] = dict(zip(clusterSet,[0]*len(clusterSet))) # use dict instead of variable to avoid referening the same object
             for cluster in img_clusters:
-                adjacency_matrix[hashtag][cluster] = 1
+                hashtags_clusters_nodelist[hashtag][cluster] += 1
+        # users_clusters
+        user = img_to_user_map[img]
+        if user not in list(users_clusters_nodelist.keys()):
+            users_clusters_nodelist[user] = dict(zip(clusterSet, [0]*len(clusterSet)))
+        for cluster in img_clusters:
+            users_clusters_nodelist[user][cluster]+=1
 
-    ## convert adjacency map to csv
-    rows = []
-    rows.append(["ID"]+list(clusterDictInit.keys()))
-    for hashtag,clusters in adjacency_matrix.items():
-        row = [hashtag]+list(clusters.values())
-        rows.append(row)
-
-    with open("nodelist.csv",'w', encoding='utf-8', errors='ignore', newline='') as f:
-        writer = csv.writer(f)
-        writer.writerows(rows)
+    # writing hashtags_clusters_nodelist
+    write_to_file(hashtags_clusters_nodelist,list(clusterSet),"ID","hashtagClusterNodelist.csv")
+    # writing users_clusters_nodelist
+    write_to_file(users_clusters_nodelist,list(clusterSet),"ID","userClusterNodelist.csv")
 
 def generateHashtagToHashtag():
-    hashtag_by_hashtag_matrix = {}
+    hashtags_hashtags_matrix = {}
     #add hashtag to hashtag-by-hashtag matrix
     for hashtags in list(img_to_hashtags_map.values()):
         addHashtagsToMap(hashtags)
-    row_length = [len(row) for row in list(hashtag_by_hashtag_matrix.values())]
+    row_length = [len(row) for row in list(hashtags_hashtags_matrix.values())]
     max_row_length = np.max(row_length)
-    # hashtag_by_hashtag_matrix_values= [row + [0]*(max_row_length-len(row)) for row in list(hashtag_by_hashtag_matrix.values())]
+    # hashtags_hashtags_matrix_values= [row + [0]*(max_row_length-len(row)) for row in list(hashtags_hashtags_matrix.values())]
     rows = []
-    rows.append(['']+list(hashtag_by_hashtag_matrix.keys()))
-    for idx, hashtag in enumerate(list(hashtag_by_hashtag_matrix.keys())):
-        matrix_cells = hashtag_by_hashtag_matrix[hashtag]
+    rows.append(['']+list(hashtags_hashtags_matrix.keys()))
+    for idx, hashtag in enumerate(list(hashtags_hashtags_matrix.keys())):
+        matrix_cells = hashtags_hashtags_matrix[hashtag]
         row = [hashtag] + matrix_cells + [0]*(max_row_length-len(matrix_cells))
         rows.append(row)
     with open("hashtag_by_hashtag_matrix.csv",'w', encoding='utf-8', errors='ignore', newline='') as f:
         writer = csv.writer(f)
         writer.writerows(rows)
 
-root = os.getcwd()
-for _dir in os.listdir(root):
-    if os.path.isfile(os.path.join(root,_dir)):
-        continue
-    print("Processing", os.path.join(root,_dir))
-    os.chdir(os.path.join(root,_dir))
-    generateClusterMap()
-    generateHashtagToHashtag()
-    # generateHeatmapImages("input_data/images")
+def generateUserMatrix():
+    # user matrix
+    hashtagSet = [hashtag for hashtags in user_to_hashtags_map.values() for hashtag in hashtags]
+    # users_to_hashtags_matrix as an input for users_to_users_matrix
+    users_hashtags_matrix = {}
+    for (user,hashtags) in user_to_hashtags_map.items():
+        if user not in list(users_hashtags_matrix.keys()):
+            users_hashtags_matrix[user] = dict(zip(hashtagSet,[0]*len(hashtagSet)))
+        for hashtag in hashtags:
+            users_hashtags_matrix[user][hashtag] += 1
+    # users_to_users_matrix (pairwise comparison)           
+    users_users_matrix = {}
+    for (user, hashtags) in users_hashtags_matrix.items():
+        users_users_matrix[user] = [0]*len(list(users_hashtags_matrix.keys()))
+        for idx,x in enumerate(users_hashtags_matrix.keys()):
+            users_users_matrix[user][idx] = dist.euclidean(list(users_hashtags_matrix[user].values()),list(users_hashtags_matrix[x].values()))
+    # write_to_file
+    write_to_file(users_to_users_matrix, list(users_to_users_matrix.keys()), "", "users_users_pairwise.csv")
+# root = os.getcwd()
+# for _dir in os.listdir(root):
+#     if os.path.isfile(os.path.join(root,_dir)):
+#         continue
+#     print("Processing", os.path.join(root,_dir))
+#     os.chdir(os.path.join(root,_dir))
+#     generateClusterNodelist()
+#     generateHashtagToHashtag()
+    # generateHeatmapImages("input_data/images"\
 
-# root_folder = "datasets"
-# for _,dirs,_ in os.walk(root_folder):
-#     os.chdir(os.path.join(os.getcwd(),"datasets"))
-#     for _dir in dirs:
-#         print(_dir)
-#         img_to_hashtags_map = {}
-#         hashtag_by_hashtag_matrix = {}
-#         os.chdir(os.path.join(".",_dir))
-#         with open("metadata.json",'r', encoding="utf8") as f:
-#             metadata = json.load(f)
-#         imgToHashtags(metadata) # img to tags
-#         os.chdir('../')
+def clusterStatsCore(cluster):
+    img_to_cluster_map = {}
+    all_clusters = []
+    getAncestorClusters("", cluster, img_to_cluster_map,all_clusters) 
+    cluster_to_img_map = {}
+    for (img,cluster) in img_to_cluster_map.items():
+        img_clusters = img_to_cluster_map[img].split(',')
+        for cluster in img_clusters:
+            if cluster not in list(cluster_to_img_map.keys()):
+                cluster_to_img_map[cluster] = []
+            cluster_to_img_map[cluster].append(img)
+    cluster_tags_in_img_map = {}
+    cluster_tags_in_caption_map = {}
+    core_categories = {
+        'cottagecore': 'cottagecore',
+        "nostalgiacore":'altcore',
+        "childhoodcore":'altcore',
+        "cybercore":'altcore',
+        "webcore":'altcore',
+        "dreamcore":'altcore',
+        "liminalcore":'altcore',
+        "90score":'altcore',
+        "memorycore":'altcore',
+        "forgottencore":'altcore',
+        "abandonedcore":'altcore',
+        "strangecore":'altcore',
+        "oddcore":'altcore',
+        "weirdcore":'altcore',
+        "voidcore":'altcore',
+        "y2kcore":'altcore',
+        "goblincore":'nichecore',
+        "forestcore":'nichecore',
+        "naturecore":'nichecore',
+        "farmcore":'nichecore',
+        "grandmacore":'nichecore',
+        "witchcore":'nichecore',
+        "honeycore":'nichecore',
+        "warmcore":'nichecore',
+        "frogcore":'nichecore',
+        "cozycore":'nichecore',
+        "darkcottagecore":'nichecore',
+        "gardencore":'nichecore',
+        "flowercore":'nichecore',
+        "faecore":'nichecore'
+    }
+    cluster_tags_stat = []
+    cluster_tags_stat.append(["ID","#_posts","#_cottagecore_collect","#_altcores_collect","#_nichecores_collect","#_cottagecore_caption","#_altcores_caption","#_nichecores_caption"])
+    for (cluster, imgs) in cluster_to_img_map.items():
+        # print('cluster', cluster)
+        # print([img.split('_')[0] for img in imgs])
+        tags_collection_counter = {}
+        tags_caption_counter = {}
+        for img in imgs:
+            category = 'nichecore' if img.split('_')[0] not in list(core_categories.keys()) else core_categories[img.split('_')[0]]
+            if category not in list(tags_collection_counter.keys()):
+                tags_collection_counter[category]=0
+            tags_collection_counter[category]+=1
+            for hashtag in list(set(img_to_hashtags_map[img])):
+                if hashtag not in list(core_categories.keys()):
+                    continue
+                tags_caption_category = core_categories[hashtag]+"_caption"
+                if tags_caption_category not in list(tags_caption_counter.keys()):
+                    tags_caption_counter[tags_caption_category]=0
+                tags_caption_counter[tags_caption_category]+=1
+        cluster_tags_stat.append([cluster]+[len(imgs)]+
+                                    [tags_collection_counter['cottagecore'] if 'cottagecore' in list(tags_collection_counter.keys()) else 0]+
+                                    [tags_collection_counter['altcore'] if 'altcore' in list(tags_collection_counter.keys()) else 0]+
+                                    [tags_collection_counter['nichecore'] if 'nichecore' in list(tags_collection_counter.keys()) else 0]+
+                                    [tags_caption_counter['cottagecore_caption'] if 'cottagecore_caption' in list(tags_caption_counter.keys()) else 0]+
+                                    [tags_caption_counter['altcore_caption'] if 'altcore_caption' in list(tags_caption_counter.keys()) else 0]+
+                                    [tags_caption_counter['nichecore_caption'] if 'nichecore_caption' in list(tags_caption_counter.keys()) else 0]
+                                    )
+    with open("cluster_tags_stat.csv",'w', encoding='utf-8', errors='ignore', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerows(cluster_tags_stat)
+
+root_folder = "dataset"
+for _,dirs,_ in os.walk(root_folder):
+    os.chdir(os.path.join(os.getcwd(),"dataset"))
+    for _dir in dirs:
+        print(_dir)
+        os.chdir(os.path.join(".",_dir))
+        # mappings
+        img_to_cluster_map = {}
+        img_to_hashtags_map = {}   
+        img_to_user_map = {}
+        user_to_hashtags_map = {}
+        # nodelists
+        users_clusters_nodelist = {}
+        hashtags_clusters_nodelist = {}
+        # read input files
+        with open("clusters.json",'r', encoding="utf8") as f:
+            cluster = json.load(f)
+        with open("metadata.json",'r', encoding="utf8") as f:
+            metadata = json.load(f)
+    
+        imgToMetadata(metadata) # get metadata, e.g. users and hashtags
+        generateClusterNodelist(cluster)
+        generateUserMatrix()
+        # generateHashtagToHashtag()
+        clusterStatsCore(cluster)
+        os.chdir('../')
