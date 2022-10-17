@@ -335,8 +335,13 @@ class ImageMachine:
         if root:
             total_centroid = [0] * len(kmeans.cluster_centers_[1]) # which cluster center doesnt matter, the length is the same for all centers
             # root cluster maps to every single hashtag
-            for hashtag in self.hashtags:
-                self.cluster_hashtag_map["root"] = [1]*len(self.hashtags)
+            hashtags = [hashtag for hashtags in self.img_to_hashtags_map.values() for hashtag in hashtags]
+            hashtag_map_root = dict(zip(self.hashtags,[0]*len(self.hashtags)))
+            for hashtag in hashtags:
+                if hashtag not in list(hashtag_map_root.keys()):
+                    hashtag_map_root[hashtag] = 0
+                hashtag_map_root[hashtag] += 1
+            self.cluster_hashtag_map["root"] = list(hashtag_map_root.values())
         for i in range(len(image_filenames)):
             file = image_filenames[i]
             cluster = int(kmeans.labels_[i])
@@ -381,7 +386,9 @@ class ImageMachine:
                     # child = child.replace('/','\\')    
                     hashtags = self.img_to_hashtags_map[child]
                     for hashtag in hashtags:
-                        cluster_hashtags_map[hashtag] = 1
+                        if hashtag not in list(self.img_to_hashtags_map.keys()):
+                            cluster_hashtags_map[hashtag] = 0
+                        cluster_hashtags_map[hashtag] += 1
                 self.cluster_hashtag_map[current_clusters_string] = list(cluster_hashtags_map.values())
             if len(childrenToProcess[cluster_index]['data']) <= self.k_clusters: # If less than K images, this is the end of the cluster branch (leaf)
                 # add leaves to children as nodes
@@ -524,7 +531,7 @@ class ImageMachine:
             keys_exists(node,"description") # get caption
             caption = caption.replace('\n',' ') if caption != None else None
             hashtags = re.findall(r"#(\w+)",caption) if caption != None else [] # retrieve hashtags
-            hashtags = [str(hashtag).lower() for hashtag in hashtags]
+            hashtags = list(set([str(hashtag).lower() for hashtag in hashtags]))
             hashtag_set.update(hashtags)
             self.img_to_hashtags_map[image] = hashtags
         self.hashtags = list(hashtag_set)
