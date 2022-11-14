@@ -213,7 +213,7 @@ def generateUserMatrix():
         for idx,x in enumerate(users_hashtags_matrix.keys()):
             users_users_matrix[user][idx] = dist.euclidean(list(users_hashtags_matrix[user].values()),list(users_hashtags_matrix[x].values()))
     # write_to_file
-    write_to_file(users_to_users_matrix, list(users_to_users_matrix.keys()), "", "users_users_pairwise.csv")
+    write_to_file(users_users_matrix, list(users_users_matrix.keys()), "", "users_users_pairwise.csv")
 # root = os.getcwd()
 # for _dir in os.listdir(root):
 #     if os.path.isfile(os.path.join(root,_dir)):
