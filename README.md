@@ -16,12 +16,12 @@ create input_data\ folder within ml folder with two subfolders images\ and metad
     ...
   |input_data
     |images
-      |your_img_folder
+      |example_image_set
         1.jpg
         2.jpg
          ...
     |metadata
-       metadata.json/metadata.csv/[None]
+       example.json/example.csv/[None]
 |graph
   |static
 ```
@@ -48,13 +48,9 @@ Options:
   --help
 ```
 
-### Visualization
+### Example
 
 ```
-Rename the clusters_<number>.json in graph/dist/static to clusters.json
-Move the folder of images to dist if any
-npm install
-npm run build
-npm run dev
+im -metadata example.json -img example_image_set
 ```
 
